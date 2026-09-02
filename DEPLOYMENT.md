@@ -38,7 +38,7 @@ This guide describes how to deploy **Jaypee School Connect** on **Render** (Back
    - **Name**: `jaypee-school-connect-api`
    - **Root Directory**: `server`
    - **Runtime**: `Node`
-   - **Build Command**: `npm install && npm run build`
+   - **Build Command**: `npm install --include=dev && npm run build`
    - **Start Command**: `npm start`
 5. Under **Environment Variables**, add:
    | Key | Value | Description |

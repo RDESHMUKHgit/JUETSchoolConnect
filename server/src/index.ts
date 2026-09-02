@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
@@ -14,7 +14,7 @@ app.use(helmet());
 app.use(morgan('dev'));
 app.use(
   cors({
-    origin: (origin, callback) => {
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       // Allow requests with no origin (curl, mobile apps, Postman)
       if (!origin) return callback(null, true);
 
@@ -25,7 +25,7 @@ app.use(
 
       // Parse configured client URLs from environment variable
       const configuredOrigins = ENV.CLIENT_URL
-        ? ENV.CLIENT_URL.split(',').map((url) => url.trim())
+        ? ENV.CLIENT_URL.split(',').map((url: string) => url.trim())
         : [];
 
       if (
@@ -49,7 +49,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Root healthcheck
-app.get('/api/health', (_req, res) => {
+app.get('/api/health', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'ok',
     service: 'Jaypee School Connect Backend API',
