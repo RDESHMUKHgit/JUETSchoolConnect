@@ -1,0 +1,9 @@
+use this structure and rules..
+in the root directory, 
+-a client folder for frontend using react vite
+-a server folder for backend using express, use proper JWT, cookies, sessions
+-create traditional folders (follow what professionals do) like for frontend in src-> context, api, assets, components, pages, etc...
+for backend: config, controllers, middlewares, routes, models, validators, etc
+whatever is required..
+-KEEP IN MIND to create multiple files, write humanoid code, easy and clear to understand, small comments, 
+and dont write very large files, if no of lines are exceeding 400-500 lines then split that to a new file.. 
