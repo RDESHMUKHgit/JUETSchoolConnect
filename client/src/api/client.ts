@@ -42,7 +42,9 @@ export async function apiRequest<T = any>(
 
     return data;
   } catch (err: any) {
-    console.error(`[API Error: ${endpoint}]`, err.message);
+    if (endpoint !== '/auth/me') {
+      console.error(`[API Error: ${endpoint}]`, err.message);
+    }
     throw err;
   }
 }

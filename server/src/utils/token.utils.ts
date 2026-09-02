@@ -4,7 +4,20 @@ import { ENV } from '../config/env.js';
 import { JwtUserPayload } from '../types/auth.types.js';
 
 export const signToken = (payload: JwtUserPayload): string => {
-  return jwt.sign(payload, ENV.JWT_SECRET, {
+  const cleanPayload: Record<string, any> = {
+    userId: payload.userId,
+    email: payload.email,
+    role: payload.role,
+    status: payload.status,
+    fullName: payload.fullName,
+    schoolId: payload.schoolId,
+    schoolName: payload.schoolName,
+  };
+  if (payload.authId) {
+    cleanPayload.authId = payload.authId;
+  }
+
+  return jwt.sign(cleanPayload, ENV.JWT_SECRET, {
     expiresIn: ENV.JWT_EXPIRES_IN as any,
   });
 };

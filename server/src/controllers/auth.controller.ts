@@ -102,7 +102,12 @@ export const completePrincipalProfile = async (req: Request, res: Response): Pro
     }
 
     const payload: JwtUserPayload = {
-      ...user,
+      userId: user.userId,
+      authId: user.authId,
+      email: user.email,
+      role: user.role,
+      schoolId: user.schoolId,
+      schoolName: user.schoolName,
       status: 'COMPLETED',
       fullName: updated.full_name,
     };
@@ -192,10 +197,14 @@ export const submitSchoolDetails = async (req: Request, res: Response): Promise<
     }
 
     const payload: JwtUserPayload = {
-      ...user,
+      userId: user.userId,
+      authId: user.authId,
+      email: user.email,
+      role: user.role,
       schoolId: schoolData.school_id,
       schoolName: schoolData.name,
       status: 'PENDING',
+      fullName: user.fullName,
     };
 
     const token = signToken(payload);
@@ -332,10 +341,14 @@ export const completeStudentProfile = async (req: Request, res: Response): Promi
     }
 
     const payload: JwtUserPayload = {
-      ...user,
+      userId: user.userId,
+      authId: user.authId,
+      email: user.email,
+      role: user.role,
       schoolId: school.school_id,
       schoolName: school.name,
       status: 'PENDING',
+      fullName: updated.full_name,
     };
 
     const token = signToken(payload);

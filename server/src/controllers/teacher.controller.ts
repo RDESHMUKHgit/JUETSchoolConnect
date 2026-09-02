@@ -53,7 +53,12 @@ export const completeTeacherProfile = async (req: Request, res: Response): Promi
     }
 
     const payload: JwtUserPayload = {
-      ...user,
+      userId: user.userId,
+      authId: user.authId,
+      email: user.email,
+      role: user.role,
+      schoolId: user.schoolId,
+      schoolName: user.schoolName,
       fullName: updated.full_name,
       status: 'PENDING',
     };

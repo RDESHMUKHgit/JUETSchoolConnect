@@ -78,8 +78,8 @@ export const PrincipalProfileSetup: React.FC = () => {
             value={designation}
             onChange={(e) => setDesignation(e.target.value as any)}
             options={[
-              { value: 'P', label: 'Principal' },
-              { value: 'VP', label: 'Vice Principal' },
+              { value: 'P', label: 'P' },
+              { value: 'VP', label: 'VP' },
             ]}
           />
 
