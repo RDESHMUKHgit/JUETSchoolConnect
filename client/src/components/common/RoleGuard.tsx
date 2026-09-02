@@ -42,8 +42,8 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
   // Check Onboarding State Machine & Status
   const currentPath = location.pathname;
 
-  // 1. NOT COMPLETED -> Redirect to profile setup
-  if (user.status === 'NOT COMPLETED') {
+  // 1. NOT COMPLETED / NOT_COMPLETED -> Redirect to profile setup
+  if (user.status === 'NOT_COMPLETED' || user.status === 'NOT COMPLETED') {
     const setupPath = `/${user.role.toLowerCase()}/profile-setup`;
     if (currentPath !== setupPath) {
       return <Navigate to={setupPath} replace />;
@@ -66,9 +66,9 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
     }
   }
 
-  // 4. VERIFIED -> If user tries to visit setup or verification page, send to their main dashboard
+  // 4. VERIFIED / ACTIVE -> If user tries to visit setup or verification page, send to their main dashboard
   if (
-    user.status === 'VERIFIED' &&
+    (user.status === 'VERIFIED' || user.status === 'ACTIVE') &&
     (currentPath.includes('profile-setup') ||
       currentPath.includes('school-setup') ||
       currentPath.includes('verification'))

@@ -85,7 +85,7 @@ export const StudentManagement: React.FC = () => {
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <h4 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>{st.full_name}</h4>
-                      <Badge variant={st.status === 'VERIFIED' ? 'success' : 'warning'} size="sm">
+                      <Badge variant={st.status === 'VERIFIED' || st.status === 'ACTIVE' ? 'success' : 'warning'} size="sm">
                         {st.status}
                       </Badge>
                       <Badge variant="default" size="sm">Class 12</Badge>

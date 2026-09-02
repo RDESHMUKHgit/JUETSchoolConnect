@@ -26,7 +26,7 @@ export const registerPrincipalInit = async (req: Request, res: Response): Promis
 
     const authId = authData.user?.id;
 
-    // 2. Insert into public.principal with initial status NOT COMPLETED and school_id NULL
+    // 2. Insert into public.principal with initial status NOT_COMPLETED and school_id NULL
     const { data: principalData, error: dbError } = await supabase
       .from('principal')
       .insert([
@@ -34,7 +34,7 @@ export const registerPrincipalInit = async (req: Request, res: Response): Promis
           full_name,
           email,
           auth_id: authId,
-          status: 'NOT COMPLETED',
+          status: 'NOT_COMPLETED',
           school_id: null,
         },
       ])
@@ -52,7 +52,7 @@ export const registerPrincipalInit = async (req: Request, res: Response): Promis
       authId,
       email: principalData.email,
       role: 'PRINCIPAL',
-      status: 'NOT COMPLETED',
+      status: 'NOT_COMPLETED',
       fullName: principalData.full_name,
       schoolId: null,
     };
@@ -236,7 +236,7 @@ export const registerStudentInit = async (req: Request, res: Response): Promise<
 
     const authId = authData.user?.id;
 
-    // 2. Insert into public.student with Class 12, status NOT COMPLETED, school_id null
+    // 2. Insert into public.student with Class 12, status NOT_COMPLETED, school_id null
     const { data: studentData, error: dbErr } = await supabase
       .from('student')
       .insert([
@@ -245,7 +245,7 @@ export const registerStudentInit = async (req: Request, res: Response): Promise<
           email,
           auth_id: authId,
           class: 12,
-          status: 'NOT COMPLETED',
+          status: 'NOT_COMPLETED',
           school_id: null,
         },
       ])
@@ -262,7 +262,7 @@ export const registerStudentInit = async (req: Request, res: Response): Promise<
       authId,
       email: studentData.email,
       role: 'STUDENT',
-      status: 'NOT COMPLETED',
+      status: 'NOT_COMPLETED',
       fullName: studentData.full_name,
       schoolId: null,
     };
@@ -465,12 +465,14 @@ export const publicLogin = async (req: Request, res: Response): Promise<void> =>
 
     // Compute navigation destination based on role and status
     let redirectUrl = `/${role.toLowerCase()}`;
-    if (userRecord.status === 'NOT COMPLETED') {
+    if (userRecord.status === 'NOT_COMPLETED' || userRecord.status === 'NOT COMPLETED') {
       redirectUrl = `/${role.toLowerCase()}/profile-setup`;
     } else if (role === 'PRINCIPAL' && userRecord.status === 'COMPLETED') {
       redirectUrl = `/principal/school-setup`;
     } else if (userRecord.status === 'PENDING') {
       redirectUrl = `/${role.toLowerCase()}/verification`;
+    } else if (userRecord.status === 'VERIFIED' || userRecord.status === 'ACTIVE') {
+      redirectUrl = `/${role.toLowerCase()}`;
     }
 
     res.status(200).json({

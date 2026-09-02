@@ -1,11 +1,14 @@
 export type UserRole = 'ADMIN' | 'PRINCIPAL' | 'TEACHER' | 'STUDENT';
 
 export type UserStatus = 
+  | 'NOT_COMPLETED'
   | 'NOT COMPLETED'
   | 'COMPLETED'
   | 'PENDING'
   | 'VERIFIED'
-  | 'SUSPENDED';
+  | 'ACTIVE'
+  | 'SUSPENDED'
+  | 'REJECTED';
 
 export interface User {
   userId: string;

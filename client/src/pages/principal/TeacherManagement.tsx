@@ -216,12 +216,12 @@ export const TeacherManagement: React.FC = () => {
                           Approve Teacher
                         </Button>
                       )}
-                      {t.status === 'NOT COMPLETED' && (
+                      {(t.status === 'NOT_COMPLETED' || t.status === 'NOT COMPLETED') && (
                         <span style={{ fontSize: '12px', color: '#64748B', fontStyle: 'italic' }}>
                           Awaiting teacher first login
                         </span>
                       )}
-                      {t.status === 'VERIFIED' && (
+                      {(t.status === 'VERIFIED' || t.status === 'ACTIVE') && (
                         <Badge variant="success" size="sm">Active Faculty</Badge>
                       )}
                     </div>

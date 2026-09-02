@@ -241,3 +241,59 @@ CREATE TABLE public.admin (
         REFERENCES auth.users(id)
         ON DELETE CASCADE
 );
+
+-- ==============================================================================
+-- PRODUCTION ONBOARDING & VERIFICATION SCHEMA CONSTRAINTS
+-- Execute the following block in the Supabase SQL Editor:
+-- ==============================================================================
+
+-- 1. Kill any broken auth triggers attempting to write to nonexistent "profiles"
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users CASCADE;
+DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
+
+-- 2. School: Add status column with verification check constraint
+ALTER TABLE public.school 
+ADD COLUMN IF NOT EXISTS status character varying NOT NULL DEFAULT 'PENDING' 
+CHECK (status::text = ANY (ARRAY['PENDING'::text, 'ACTIVE'::text, 'VERIFIED'::text, 'REJECTED'::text]));
+
+-- 3. Principal: Allow draft registration (null school_id) and complete status lifecycle
+ALTER TABLE public.principal ALTER COLUMN school_id DROP NOT NULL;
+ALTER TABLE public.principal DROP CONSTRAINT IF EXISTS principal_status_check;
+ALTER TABLE public.principal ADD CONSTRAINT principal_status_check 
+CHECK (status::text = ANY (ARRAY[
+  'NOT_COMPLETED'::text, 
+  'NOT COMPLETED'::text, 
+  'COMPLETED'::text, 
+  'PENDING'::text, 
+  'ACTIVE'::text, 
+  'VERIFIED'::text, 
+  'SUSPENDED'::text,
+  'REJECTED'::text
+]));
+
+-- 4. Teachers: Support full onboarding and principal verification lifecycle
+ALTER TABLE public.teachers DROP CONSTRAINT IF EXISTS teachers_status_check;
+ALTER TABLE public.teachers ADD CONSTRAINT teachers_status_check 
+CHECK (status::text = ANY (ARRAY[
+  'NOT_COMPLETED'::text, 
+  'NOT COMPLETED'::text, 
+  'PENDING'::text, 
+  'ACTIVE'::text, 
+  'VERIFIED'::text, 
+  'SUSPENDED'::text,
+  'REJECTED'::text
+]));
+
+-- 5. Student: Allow initial Step 0 registration (null school_id) and verification lifecycle
+ALTER TABLE public.student ALTER COLUMN school_id DROP NOT NULL;
+ALTER TABLE public.student DROP CONSTRAINT IF EXISTS student_status_check;
+ALTER TABLE public.student ADD CONSTRAINT student_status_check 
+CHECK (status::text = ANY (ARRAY[
+  'NOT_COMPLETED'::text, 
+  'NOT COMPLETED'::text, 
+  'PENDING'::text, 
+  'ACTIVE'::text, 
+  'VERIFIED'::text, 
+  'SUSPENDED'::text,
+  'REJECTED'::text
+]));

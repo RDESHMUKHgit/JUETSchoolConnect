@@ -42,7 +42,7 @@ export const createTeacherAccount = async (req: Request, res: Response): Promise
           email,
           auth_id: authId,
           full_name: null, // to be entered by teacher upon first login
-          status: 'NOT COMPLETED',
+          status: 'NOT_COMPLETED',
         },
       ])
       .select()
