@@ -11,8 +11,7 @@ export const TeacherProfileSetup: React.FC = () => {
   const navigate = useNavigate();
   const { user, completeTeacherProfile } = useAuth();
 
-  // Full Name is entered here because Principal only provisioned Email & Password
-  const [fullName, setFullName] = useState('');
+  // Teacher profile setup state (Full Name is pre-set by the Principal during account provisioning)
   const [phone, setPhone] = useState('');
   const [empId, setEmpId] = useState('');
   const [department, setDepartment] = useState('Science');
@@ -25,16 +24,11 @@ export const TeacherProfileSetup: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName) {
-      setError('Please provide your full name.');
-      return;
-    }
 
     try {
       setLoading(true);
       setError(null);
       const nextStep = await completeTeacherProfile({
-        full_name: fullName,
         phone,
         teachers_emp_id: empId,
         department,
@@ -65,8 +59,18 @@ export const TeacherProfileSetup: React.FC = () => {
           </p>
         </div>
 
-        <div style={{ background: '#F8FAFC', padding: '12px 16px', borderRadius: '8px', border: '1px solid #E2E8F0', marginBottom: '20px' }}>
-          <p style={{ fontSize: '13px', color: '#334155', margin: 0 }}>
+        {/* Pre-filled Account Information from Principal */}
+        <div style={{ background: '#F8FAFC', padding: '14px 18px', borderRadius: '10px', border: '1px solid #E2E8F0', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <User size={16} style={{ color: '#9A751A' }} />
+            <p style={{ fontSize: '14px', color: '#0F172A', margin: 0, fontWeight: 700 }}>
+              {user?.fullName || 'Faculty Member'}
+            </p>
+          </div>
+          <p style={{ fontSize: '13px', color: '#475569', margin: 0 }}>
+            Official Email: <strong style={{ color: '#0F172A' }}>{user?.email}</strong>
+          </p>
+          <p style={{ fontSize: '13px', color: '#475569', margin: 0 }}>
             Associated School: <strong style={{ color: '#0F172A' }}>{user?.schoolName || 'Your School'}</strong>
           </p>
         </div>
@@ -78,15 +82,6 @@ export const TeacherProfileSetup: React.FC = () => {
         )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <Input
-            label="Full Name (with Title)"
-            placeholder="Dr. Sangeeta Verma"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            icon={<User size={18} />}
-            helperText="Enter your official name as recognized by your school administration."
-            required
-          />
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <Input

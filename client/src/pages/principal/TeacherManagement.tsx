@@ -7,7 +7,7 @@ import { Input } from '../../components/ui/Input.js';
 import { Button } from '../../components/ui/Button.js';
 import { Badge } from '../../components/ui/Badge.js';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner.js';
-import { Users, UserPlus, CheckCircle, Mail, Lock, ShieldCheck } from 'lucide-react';
+import { Users, UserPlus, CheckCircle, Mail, Lock, ShieldCheck, User } from 'lucide-react';
 
 export const TeacherManagement: React.FC = () => {
   const { user } = useAuth();
@@ -15,6 +15,7 @@ export const TeacherManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   // New teacher manual creation form state
+  const [newFullName, setNewFullName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [createLoading, setCreateLoading] = useState(false);
@@ -41,8 +42,8 @@ export const TeacherManagement: React.FC = () => {
 
   const handleCreateTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newEmail || !newPassword) {
-      setError('Please provide both teacher email and password.');
+    if (!newFullName || !newEmail || !newPassword) {
+      setError('Please provide teacher full name, email, and temporary password.');
       return;
     }
 
@@ -51,10 +52,12 @@ export const TeacherManagement: React.FC = () => {
       setError(null);
       setMessage(null);
       const res = await principalApi.createTeacher({
+        full_name: newFullName,
         email: newEmail,
         password: newPassword,
       });
       setMessage(res.message || 'Teacher credentials created successfully.');
+      setNewFullName('');
       setNewEmail('');
       setNewPassword('');
       await loadTeachers();
@@ -99,7 +102,7 @@ export const TeacherManagement: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#FEFCE8', padding: '14px 18px', borderRadius: '10px', border: '1px solid #FEF08A' }}>
           <ShieldCheck size={20} style={{ color: '#9A751A', flexShrink: 0 }} />
           <p style={{ fontSize: '13px', color: '#334155', margin: 0, lineHeight: 1.5 }}>
-            <strong>How Faculty Onboarding Works:</strong> You enter the teacher's Email & Password below. The teacher then logs in from the base website using those credentials, enters their Full Name and academic specialization, and their status moves to <strong style={{ color: '#B45309' }}>PENDING</strong>. As Principal, you click <strong>Approve</strong> below to unlock their portal.
+            <strong>How Faculty Onboarding Works:</strong> You enter the teacher's Full Name, Email & Temporary Password below. The teacher then logs in from the base website using those credentials, completes their academic specialization, and their status moves to <strong style={{ color: '#B45309' }}>PENDING</strong>. As Principal, you click <strong>Approve</strong> below to unlock their portal.
           </p>
         </div>
 
@@ -116,7 +119,7 @@ export const TeacherManagement: React.FC = () => {
         )}
 
         {/* Section 1: Provision New Teacher Form */}
-        <Card variant="glass" padding="lg" style={{ maxWidth: '680px' }}>
+        <Card variant="glass" padding="lg" style={{ maxWidth: '820px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
             <UserPlus size={20} style={{ color: '#9A751A' }} />
             <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A' }}>
@@ -125,7 +128,16 @@ export const TeacherManagement: React.FC = () => {
           </div>
 
           <form onSubmit={handleCreateTeacher} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+              <Input
+                label="Teacher Full Name"
+                type="text"
+                placeholder="Dr. Sangeeta Sharma"
+                value={newFullName}
+                onChange={(e) => setNewFullName(e.target.value)}
+                icon={<User size={16} />}
+                required
+              />
               <Input
                 label="Teacher Official Email"
                 type="email"

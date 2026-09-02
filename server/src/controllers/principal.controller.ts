@@ -13,17 +13,19 @@ export const createTeacherAccount = async (req: Request, res: Response): Promise
       return;
     }
 
-    const { email, password } = req.body;
+    const { full_name, email, password } = req.body;
     if (!email || !password) {
       res.status(400).json({ success: false, message: 'Teacher email and password are required.' });
       return;
     }
 
+    const teacherName = full_name?.trim() || null;
+
     // 1. Create auth user in Supabase
     const { data: authData, error: authErr } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { role: 'TEACHER', school_id: schoolId } },
+      options: { data: { role: 'TEACHER', school_id: schoolId, full_name: teacherName } },
     });
 
     if (authErr) {
@@ -33,7 +35,7 @@ export const createTeacherAccount = async (req: Request, res: Response): Promise
 
     const authId = authData.user?.id;
 
-    // 2. Insert into teachers table with status NOT COMPLETED and full_name null
+    // 2. Insert into teachers table with status NOT_COMPLETED and full_name entered by principal
     const { data: teacher, error: dbErr } = await supabase
       .from('teachers')
       .insert([
@@ -41,7 +43,7 @@ export const createTeacherAccount = async (req: Request, res: Response): Promise
           school_id: schoolId,
           email,
           auth_id: authId,
-          full_name: null, // to be entered by teacher upon first login
+          full_name: teacherName || 'Faculty Teacher',
           status: 'NOT_COMPLETED',
         },
       ])
@@ -55,7 +57,7 @@ export const createTeacherAccount = async (req: Request, res: Response): Promise
 
     res.status(201).json({
       success: true,
-      message: `Teacher account created for ${email}. Teacher can now log in using these credentials to complete their profile.`,
+      message: `Teacher account created for ${teacherName ? `${teacherName} (${email})` : email}. Teacher can now log in using these credentials to complete their profile.`,
       teacher,
     });
   } catch (err: any) {

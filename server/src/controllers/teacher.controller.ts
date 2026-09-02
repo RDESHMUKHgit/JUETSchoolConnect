@@ -23,26 +23,25 @@ export const completeTeacherProfile = async (req: Request, res: Response): Promi
       dob,
     } = req.body;
 
-    if (!full_name) {
-      res.status(400).json({ success: false, message: 'Full name is required.' });
-      return;
+    const updateFields: Record<string, any> = {
+      phone,
+      teachers_emp_id,
+      designation: designation || 'Teacher',
+      department,
+      qualification,
+      specialization,
+      gender,
+      dob,
+      status: 'PENDING', // Moves directly from NOT_COMPLETED to PENDING
+      updated_at: new Date().toISOString(),
+    };
+    if (full_name) {
+      updateFields.full_name = full_name;
     }
 
     const { data: updated, error } = await supabase
       .from('teachers')
-      .update({
-        full_name,
-        phone,
-        teachers_emp_id,
-        designation: designation || 'Teacher',
-        department,
-        qualification,
-        specialization,
-        gender,
-        dob,
-        status: 'PENDING', // Moves directly from NOT COMPLETED to PENDING (no school form needed)
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateFields)
       .eq('teacher_id', user.userId)
       .select()
       .single();

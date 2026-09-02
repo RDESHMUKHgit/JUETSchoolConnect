@@ -1,7 +1,7 @@
 import { apiRequest } from './client.js';
 
 export const principalApi = {
-  createTeacher: (data: { email: string; password: string }) =>
+  createTeacher: (data: { full_name: string; email: string; password: string }) =>
     apiRequest('/principal/teachers', {
       method: 'POST',
       body: JSON.stringify(data),

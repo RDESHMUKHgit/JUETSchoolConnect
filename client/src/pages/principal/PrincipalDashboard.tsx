@@ -6,6 +6,8 @@ import { PortalSidebarLayout } from '../../layouts/PortalSidebarLayout.js';
 import { Card } from '../../components/ui/Card.js';
 import { Badge } from '../../components/ui/Badge.js';
 import { Button } from '../../components/ui/Button.js';
+import { Modal } from '../../components/ui/Modal.js';
+import { Input } from '../../components/ui/Input.js';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner.js';
 import {
   School,
@@ -17,6 +19,9 @@ import {
   ArrowRight,
   TrendingUp,
   UserPlus,
+  Mail,
+  Lock,
+  User,
 } from 'lucide-react';
 
 export const PrincipalDashboard: React.FC = () => {
@@ -25,6 +30,45 @@ export const PrincipalDashboard: React.FC = () => {
 
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // Add Teacher Modal state
+  const [isAddTeacherOpen, setIsAddTeacherOpen] = useState(false);
+  const [teacherFullName, setTeacherFullName] = useState('');
+  const [teacherEmail, setTeacherEmail] = useState('');
+  const [teacherPassword, setTeacherPassword] = useState('');
+  const [teacherLoading, setTeacherLoading] = useState(false);
+  const [teacherMsg, setTeacherMsg] = useState<string | null>(null);
+  const [teacherErr, setTeacherErr] = useState<string | null>(null);
+
+  const handleAddTeacherSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!teacherFullName || !teacherEmail || !teacherPassword) {
+      setTeacherErr('Please provide teacher full name, email, and temporary password.');
+      return;
+    }
+
+    try {
+      setTeacherLoading(true);
+      setTeacherErr(null);
+      setTeacherMsg(null);
+      const res = await principalApi.createTeacher({
+        full_name: teacherFullName,
+        email: teacherEmail,
+        password: teacherPassword,
+      });
+      setTeacherMsg(res.message || 'Teacher provisioned successfully!');
+      setTeacherFullName('');
+      setTeacherEmail('');
+      setTeacherPassword('');
+      // Reload statistics
+      const s = await principalApi.getStats();
+      if (s.success) setStats(s.stats);
+    } catch (err: any) {
+      setTeacherErr(err.message || 'Failed to provision teacher.');
+    } finally {
+      setTeacherLoading(false);
+    }
+  };
 
   useEffect(() => {
     async function loadStats() {
@@ -68,7 +112,7 @@ export const PrincipalDashboard: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
-            <Button variant="gold" size="sm" icon={<UserPlus size={16} />} onClick={() => navigate('/principal/teachers')}>
+            <Button variant="gold" size="sm" icon={<UserPlus size={16} />} onClick={() => setIsAddTeacherOpen(true)}>
               Add New Teacher
             </Button>
             <Button variant="secondary" size="sm" icon={<GraduationCap size={16} />} onClick={() => navigate('/principal/students')}>
@@ -165,6 +209,82 @@ export const PrincipalDashboard: React.FC = () => {
           </>
         )}
       </div>
+
+      {/* Add Teacher Modal in Principal Cockpit */}
+      <Modal
+        isOpen={isAddTeacherOpen}
+        onClose={() => {
+          setIsAddTeacherOpen(false);
+          setTeacherErr(null);
+          setTeacherMsg(null);
+        }}
+        title="Provision Teaching Faculty"
+        maxWidth="500px"
+      >
+        {teacherMsg && (
+          <div style={{ padding: '12px 16px', borderRadius: '8px', background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#047857', fontSize: '13px', marginBottom: '16px' }}>
+            {teacherMsg}
+          </div>
+        )}
+
+        {teacherErr && (
+          <div style={{ padding: '12px 16px', borderRadius: '8px', background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', fontSize: '13px', marginBottom: '16px' }}>
+            {teacherErr}
+          </div>
+        )}
+
+        <form onSubmit={handleAddTeacherSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <Input
+            label="Teacher Full Name"
+            type="text"
+            placeholder="Dr. Sangeeta Sharma"
+            value={teacherFullName}
+            onChange={(e) => setTeacherFullName(e.target.value)}
+            icon={<User size={16} />}
+            helperText="Official name of the faculty member."
+            required
+          />
+
+          <Input
+            label="Official Teacher Email"
+            type="email"
+            placeholder="sangeeta.physics@school.edu.in"
+            value={teacherEmail}
+            onChange={(e) => setTeacherEmail(e.target.value)}
+            icon={<Mail size={16} />}
+            required
+          />
+
+          <Input
+            label="Temporary Password"
+            type="password"
+            placeholder="••••••••••••"
+            value={teacherPassword}
+            onChange={(e) => setTeacherPassword(e.target.value)}
+            icon={<Lock size={16} />}
+            helperText="The teacher will use this password to sign in."
+            required
+          />
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setIsAddTeacherOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="gold"
+              loading={teacherLoading}
+              icon={<UserPlus size={16} />}
+            >
+              Provision Teacher
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </PortalSidebarLayout>
   );
 };
