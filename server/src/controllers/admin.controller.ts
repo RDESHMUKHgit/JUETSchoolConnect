@@ -36,26 +36,48 @@ export const approveSchool = async (req: Request, res: Response): Promise<void> 
   try {
     const { schoolId } = req.params;
 
-    // Update principal status to VERIFIED
-    const { data, error } = await supabase
-      .from('principal')
+    // 1. Update school record status to VERIFIED
+    await supabase
+      .from('school')
       .update({
         status: 'VERIFIED',
         updated_at: new Date().toISOString(),
       })
+      .eq('school_id', schoolId);
+
+    // 2. Update principal status to ACTIVE (with fallback to VERIFIED if supported)
+    let { data, error } = await supabase
+      .from('principal')
+      .update({
+        status: 'ACTIVE',
+        updated_at: new Date().toISOString(),
+      })
       .eq('school_id', schoolId)
       .select('*, school:school_id (*)')
-      .single();
+      .maybeSingle();
 
     if (error) {
-      res.status(400).json({ success: false, message: 'Failed to approve school: ' + error.message });
-      return;
+      const retry = await supabase
+        .from('principal')
+        .update({
+          status: 'VERIFIED',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('school_id', schoolId)
+        .select('*, school:school_id (*)')
+        .maybeSingle();
+
+      if (retry.error) {
+        res.status(400).json({ success: false, message: 'Failed to approve school: ' + retry.error.message });
+        return;
+      }
+      data = retry.data;
     }
 
     res.status(200).json({
       success: true,
-      message: `School "${data.school?.name || 'Institution'}" and associated Principal approved successfully.`,
-      school: data.school,
+      message: `School "${data?.school?.name || 'Institution'}" and associated Principal approved successfully.`,
+      school: data?.school,
     });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
@@ -66,6 +88,16 @@ export const rejectSchool = async (req: Request, res: Response): Promise<void> =
   try {
     const { schoolId } = req.params;
 
+    // 1. Update school status to REJECTED
+    await supabase
+      .from('school')
+      .update({
+        status: 'REJECTED',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('school_id', schoolId);
+
+    // 2. Update principal status to SUSPENDED
     const { data, error } = await supabase
       .from('principal')
       .update({
@@ -74,14 +106,14 @@ export const rejectSchool = async (req: Request, res: Response): Promise<void> =
       })
       .eq('school_id', schoolId)
       .select('*, school:school_id (*)')
-      .single();
+      .maybeSingle();
 
     if (error) {
       res.status(400).json({ success: false, message: 'Failed to reject school: ' + error.message });
       return;
     }
 
-    res.status(200).json({ success: true, message: 'School registration rejected.', school: data.school });
+    res.status(200).json({ success: true, message: 'School registration rejected.', school: data?.school });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -123,9 +155,9 @@ export const getPlatformMetrics = async (_req: Request, res: Response): Promise<
   try {
     const [schoolsRes, verifiedSchoolsRes, teachersRes, studentsRes, testsRes, attemptsRes] = await Promise.all([
       supabase.from('school').select('*', { count: 'exact', head: true }),
-      supabase.from('school').select('*', { count: 'exact', head: true }).eq('status', 'VERIFIED'),
-      supabase.from('teachers').select('*', { count: 'exact', head: true }).eq('status', 'VERIFIED'),
-      supabase.from('student').select('*', { count: 'exact', head: true }).eq('status', 'VERIFIED'),
+      supabase.from('school').select('*', { count: 'exact', head: true }).in('status', ['VERIFIED', 'ACTIVE']),
+      supabase.from('teachers').select('*', { count: 'exact', head: true }).in('status', ['VERIFIED', 'ACTIVE']),
+      supabase.from('student').select('*', { count: 'exact', head: true }).in('status', ['VERIFIED', 'ACTIVE']),
       supabase.from('mock_test').select('*', { count: 'exact', head: true }),
       supabase.from('test_attempts').select('*', { count: 'exact', head: true }),
     ]);

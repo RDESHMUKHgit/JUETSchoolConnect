@@ -96,25 +96,39 @@ export const approveTeacher = async (req: Request, res: Response): Promise<void>
     const schoolId = req.user?.schoolId;
     const { teacherId } = req.params;
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('teachers')
       .update({
-        status: 'VERIFIED',
+        status: 'ACTIVE',
         updated_at: new Date().toISOString(),
       })
       .eq('teacher_id', teacherId)
       .eq('school_id', schoolId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
-      res.status(400).json({ success: false, message: 'Failed to approve teacher: ' + error.message });
-      return;
+      const retry = await supabase
+        .from('teachers')
+        .update({
+          status: 'VERIFIED',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('teacher_id', teacherId)
+        .eq('school_id', schoolId)
+        .select()
+        .maybeSingle();
+
+      if (retry.error) {
+        res.status(400).json({ success: false, message: 'Failed to approve teacher: ' + retry.error.message });
+        return;
+      }
+      data = retry.data;
     }
 
     res.status(200).json({
       success: true,
-      message: `Teacher ${data.full_name || data.email} approved successfully.`,
+      message: `Teacher ${data?.full_name || data?.email} approved successfully.`,
       teacher: data,
     });
   } catch (err: any) {
@@ -153,25 +167,39 @@ export const approveStudent = async (req: Request, res: Response): Promise<void>
     const schoolId = req.user?.schoolId;
     const { studentId } = req.params;
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('student')
       .update({
-        status: 'VERIFIED',
+        status: 'ACTIVE',
         updated_at: new Date().toISOString(),
       })
       .eq('student_id', studentId)
       .eq('school_id', schoolId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
-      res.status(400).json({ success: false, message: 'Failed to approve student: ' + error.message });
-      return;
+      const retry = await supabase
+        .from('student')
+        .update({
+          status: 'VERIFIED',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('student_id', studentId)
+        .eq('school_id', schoolId)
+        .select()
+        .maybeSingle();
+
+      if (retry.error) {
+        res.status(400).json({ success: false, message: 'Failed to approve student: ' + retry.error.message });
+        return;
+      }
+      data = retry.data;
     }
 
     res.status(200).json({
       success: true,
-      message: `Class 12 student ${data.full_name} approved successfully.`,
+      message: `Class 12 student ${data?.full_name} approved successfully.`,
       student: data,
     });
   } catch (err: any) {
