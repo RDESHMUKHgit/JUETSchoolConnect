@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.js';
 import { adminApi } from '../../api/admin.api.js';
 import { Card } from '../../components/ui/Card.js';
@@ -25,6 +26,7 @@ import {
 
 export const AdminPortal: React.FC = () => {
   const { user, adminLogin, logout } = useAuth();
+  const navigate = useNavigate();
 
   // Authentication State (when not logged in as Admin)
   const [email, setEmail] = useState('');
@@ -49,7 +51,13 @@ export const AdminPortal: React.FC = () => {
   const [negativeMarking, setNegativeMarking] = useState(true);
   const [testCreating, setTestCreating] = useState(false);
 
-  const isPlatformAdmin = user && user.role === 'ADMIN';
+  const isPlatformAdmin = user && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN');
+
+  useEffect(() => {
+    if (user && user.role === 'EXAM_ADMIN') {
+      navigate('/admin/exam');
+    }
+  }, [user]);
 
   const loadDashboardData = async () => {
     try {
@@ -279,7 +287,10 @@ export const AdminPortal: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <Button variant="gold" size="sm" icon={<Layers size={15} />} onClick={() => navigate('/admin/exam')}>
+            Exam Admin Portal
+          </Button>
           <Button variant="ghost" size="sm" icon={<RefreshCw size={15} />} onClick={loadDashboardData}>
             Refresh
           </Button>
@@ -431,30 +442,55 @@ export const AdminPortal: React.FC = () => {
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-                  <Card variant="glass" padding="md">
+                  <Card
+                    variant="glass"
+                    padding="md"
+                    style={{ cursor: 'pointer', transition: 'transform 0.2s ease, box-shadow 0.2s ease' }}
+                    onClick={() => setActiveTab('schools')}
+                  >
                     <div style={{ fontSize: '13px', color: '#64748B' }}>Total Registered Schools</div>
                     <div style={{ fontSize: '32px', fontWeight: 800, color: '#0F172A', marginTop: '4px' }}>{metrics?.totalSchools || 0}</div>
-                    <div style={{ fontSize: '12px', color: '#059669', marginTop: '4px', fontWeight: 600 }}>{metrics?.verifiedSchools || 0} Verified</div>
+                    <div style={{ fontSize: '12px', color: '#059669', marginTop: '4px', fontWeight: 600 }}>{metrics?.verifiedSchools || 0} Verified &rarr;</div>
                   </Card>
-                  <Card variant="glass" padding="md">
+                  <Card
+                    variant="glass"
+                    padding="md"
+                    style={{ cursor: 'pointer', transition: 'transform 0.2s ease, box-shadow 0.2s ease' }}
+                    onClick={() => setActiveTab('verification')}
+                  >
                     <div style={{ fontSize: '13px', color: '#64748B' }}>Pending Verifications</div>
                     <div style={{ fontSize: '32px', fontWeight: 800, color: '#D97706', marginTop: '4px' }}>{metrics?.pendingSchools || 0}</div>
-                    <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>Awaiting review</div>
+                    <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>Awaiting review &rarr;</div>
                   </Card>
-                  <Card variant="glass" padding="md">
+                  <Card
+                    variant="glass"
+                    padding="md"
+                    style={{ cursor: 'pointer', transition: 'transform 0.2s ease, box-shadow 0.2s ease' }}
+                    onClick={() => setActiveTab('schools')}
+                  >
                     <div style={{ fontSize: '13px', color: '#64748B' }}>Class 12 Students</div>
                     <div style={{ fontSize: '32px', fontWeight: 800, color: '#0284C7', marginTop: '4px' }}>{metrics?.class12Students || 0}</div>
                     <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>Active enrolled cohort</div>
                   </Card>
-                  <Card variant="glass" padding="md">
+                  <Card
+                    variant="glass"
+                    padding="md"
+                    style={{ cursor: 'pointer', transition: 'transform 0.2s ease, box-shadow 0.2s ease' }}
+                    onClick={() => setActiveTab('schools')}
+                  >
                     <div style={{ fontSize: '13px', color: '#64748B' }}>Active Faculty Members</div>
                     <div style={{ fontSize: '32px', fontWeight: 800, color: '#9A751A', marginTop: '4px' }}>{metrics?.activeTeachers || 0}</div>
                     <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>Teaching staff</div>
                   </Card>
-                  <Card variant="glass" padding="md">
+                  <Card
+                    variant="glass"
+                    padding="md"
+                    style={{ cursor: 'pointer', transition: 'transform 0.2s ease, box-shadow 0.2s ease' }}
+                    onClick={() => navigate('/admin/exam')}
+                  >
                     <div style={{ fontSize: '13px', color: '#64748B' }}>Class 12 Mock Tests</div>
                     <div style={{ fontSize: '32px', fontWeight: 800, color: '#7C3AED', marginTop: '4px' }}>{metrics?.totalMockTests || 0}</div>
-                    <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>Standardized tests</div>
+                    <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>Open Exam Admin &rarr;</div>
                   </Card>
                   <Card variant="glass" padding="md">
                     <div style={{ fontSize: '13px', color: '#64748B' }}>Completed Attempts</div>

@@ -19,6 +19,7 @@ import { StudentRegister } from './pages/public/StudentRegister.js';
 
 // Hidden Platform Admin Portal (/admin)
 import { AdminPortal } from './pages/admin/AdminPortal.js';
+import { ExamAdminPortal } from './pages/admin/ExamAdminPortal.js';
 
 // Principal Portal & Onboarding
 import { PrincipalProfileSetup } from './pages/principal/PrincipalProfileSetup.js';
@@ -34,6 +35,8 @@ import { TeacherProfileSetup } from './pages/teacher/TeacherProfileSetup.js';
 import { TeacherUnderVerification } from './pages/teacher/TeacherUnderVerification.js';
 import { TeacherDashboard } from './pages/teacher/TeacherDashboard.js';
 import { TeacherStudentDirectory } from './pages/teacher/TeacherStudentDirectory.js';
+import { TeacherStudentUpload } from './pages/teacher/TeacherStudentUpload.js';
+import { TeacherStudentVerification } from './pages/teacher/TeacherStudentVerification.js';
 
 // Student Portal & Onboarding
 import { StudentProfileSetup } from './pages/student/StudentProfileSetup.js';
@@ -64,6 +67,14 @@ export function App() {
           </Route>
 
           {/* 2. HIDDEN PLATFORM ADMIN ROUTE (/admin) */}
+          <Route
+            path="/admin/exam"
+            element={
+              <RoleGuard allowedRoles={['EXAM_ADMIN', 'ADMIN', 'SUPER_ADMIN']}>
+                <ExamAdminPortal />
+              </RoleGuard>
+            }
+          />
           <Route path="/admin/*" element={<AdminPortal />} />
 
           {/* 3. PRINCIPAL ONBOARDING & DASHBOARD */}
@@ -154,6 +165,22 @@ export function App() {
             element={
               <RoleGuard allowedRoles={['TEACHER']}>
                 <TeacherStudentDirectory />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/teacher/students/upload"
+            element={
+              <RoleGuard allowedRoles={['TEACHER']}>
+                <TeacherStudentUpload />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/teacher/students/verification"
+            element={
+              <RoleGuard allowedRoles={['TEACHER']}>
+                <TeacherStudentVerification />
               </RoleGuard>
             }
           />

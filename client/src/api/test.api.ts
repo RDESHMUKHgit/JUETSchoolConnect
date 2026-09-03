@@ -11,4 +11,5 @@ export const testApi = {
     }),
   getHistory: (studentId?: string) => apiRequest(`/tests/history${studentId ? `/${studentId}` : ''}`),
   getAttemptAnalysis: (attemptId: string) => apiRequest(`/tests/analysis/${attemptId}`),
+  getFullTestPaper: (testId: string) => apiRequest(`/tests/mock-tests/${testId}/full-paper`),
 };

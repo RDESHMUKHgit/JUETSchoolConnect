@@ -19,6 +19,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { MobileAppQrGate } from '../../components/common/MobileAppQrGate.js';
 
 export const TestRunnerEngine: React.FC = () => {
   const { testId } = useParams<{ testId: string }>();
@@ -61,61 +62,9 @@ export const TestRunnerEngine: React.FC = () => {
         }
 
         if (qRes.success && qRes.questions) {
-          // If no questions in DB yet, create a set of calibrated Class 12 mock questions for instant simulation
-          if (qRes.questions.length === 0) {
-            setQuestions([
-              {
-                question_id: 'q1',
-                question_text: 'An electric dipole of dipole moment p is placed in a uniform electric field E. The torque experienced by the dipole is:',
-                marks_per_question: 4,
-                negative_marking: 1,
-                option_array: [
-                  { key: 'A', text: 'p · E' },
-                  { key: 'B', text: 'p × E' },
-                  { key: 'C', text: 'Zero' },
-                  { key: 'D', text: '-p · E' },
-                ],
-              },
-              {
-                question_id: 'q2',
-                question_text: 'In a Young’s double slit experiment, if the distance between the slits is halved and the distance between the screen and the slits is doubled, fringe width will:',
-                marks_per_question: 4,
-                negative_marking: 1,
-                option_array: [
-                  { key: 'A', text: 'Remain unchanged' },
-                  { key: 'B', text: 'Double' },
-                  { key: 'C', text: 'Become four times' },
-                  { key: 'D', text: 'Be halved' },
-                ],
-              },
-              {
-                question_id: 'q3',
-                question_text: 'Which of the following coordination compounds exhibits optical isomerism?',
-                marks_per_question: 4,
-                negative_marking: 1,
-                option_array: [
-                  { key: 'A', text: 'trans-[Co(en)2Cl2]+' },
-                  { key: 'B', text: 'cis-[Co(en)2Cl2]+' },
-                  { key: 'C', text: '[Co(NH3)4Cl2]+' },
-                  { key: 'D', text: '[Co(NH3)3Cl3]' },
-                ],
-              },
-              {
-                question_id: 'q4',
-                question_text: 'The value of the integral ∫ (sin²x - cos²x) / (sin²x cos²x) dx is equal to:',
-                marks_per_question: 4,
-                negative_marking: 1,
-                option_array: [
-                  { key: 'A', text: 'tan x + cot x + C' },
-                  { key: 'B', text: 'tan x - cot x + C' },
-                  { key: 'C', text: '-tan x + cot x + C' },
-                  { key: 'D', text: '-tan x - cot x + C' },
-                ],
-              },
-            ]);
-          } else {
-            setQuestions(qRes.questions);
-          }
+          setQuestions(qRes.questions);
+        } else {
+          setQuestions([]);
         }
       } catch (err: any) {
         setError(err.message || 'Failed to initialize test attempt.');
@@ -221,119 +170,9 @@ export const TestRunnerEngine: React.FC = () => {
     );
   }
 
-  // 3. RESULT VIEW AFTER SUBMISSION
+  // 3. RESULT VIEW AFTER SUBMISSION (Mobile App QR Gated)
   if (result) {
-    const passed = result.percentage >= (test?.passing_marks || 40);
-    const scholarship = result.percentage >= 80;
-
-    return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#F8FAFC', padding: '60px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Card variant={scholarship ? 'gold' : 'glass'} padding="lg" style={{ width: '100%', maxWidth: '640px', textAlign: 'center', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', boxShadow: 'var(--shadow-lg)' }}>
-          <div
-            style={{
-              width: '68px',
-              height: '68px',
-              borderRadius: '50%',
-              background: passed ? '#ECFDF5' : '#FEF2F2',
-              border: passed ? '2px solid #10B981' : '2px solid #EF4444',
-              color: passed ? '#059669' : '#DC2626',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: '16px',
-            }}
-          >
-            {passed ? <Award size={36} /> : <AlertTriangle size={36} />}
-          </div>
-
-          <div>
-            <Badge variant={passed ? 'success' : 'danger'} size="md">
-              {passed ? 'TEST COMPLETED — PASSED' : 'TEST COMPLETED — NEEDS REVISION'}
-            </Badge>
-          </div>
-
-          <h2 style={{ fontSize: '28px', fontWeight: 800, color: '#0F172A', marginTop: '12px', marginBottom: '6px' }}>
-            {test?.title || 'Mock Test Results'}
-          </h2>
-          <p style={{ color: '#475569', fontSize: '14px', marginBottom: '28px' }}>
-            Instant evaluation generated by the Jaypee Intelligence Engine
-          </p>
-
-          {/* Scholarship Banner */}
-          {scholarship && (
-            <div
-              style={{
-                background: 'linear-gradient(135deg, #FEFCE8 0%, #FFFFFF 100%)',
-                border: '1px solid #FEF08A',
-                padding: '16px',
-                borderRadius: '12px',
-                marginBottom: '24px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                textAlign: 'left',
-                boxShadow: 'var(--shadow-sm)',
-              }}
-            >
-              <Sparkles size={26} style={{ color: '#9A751A', flexShrink: 0 }} />
-              <div>
-                <strong style={{ color: '#0F172A', fontSize: '15px' }}>Jaypee University Scholarship Qualified!</strong>
-                <p style={{ color: '#475569', fontSize: '13px', margin: 0 }}>
-                  Your score of {result.percentage}% qualifies you for tuition fee waivers. An admissions counselor will reach out to your school.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Metrics Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '28px' }}>
-            <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '16px', borderRadius: '10px' }}>
-              <div style={{ fontSize: '12px', color: '#64748B' }}>Score Obtained</div>
-              <div style={{ fontSize: '26px', fontWeight: 800, color: '#9A751A', marginTop: '4px' }}>
-                {result.scoreObtained} / {result.maxMarks}
-              </div>
-            </div>
-
-            <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '16px', borderRadius: '10px' }}>
-              <div style={{ fontSize: '12px', color: '#64748B' }}>Percentage</div>
-              <div style={{ fontSize: '26px', fontWeight: 800, color: passed ? '#059669' : '#D97706', marginTop: '4px' }}>
-                {result.percentage}%
-              </div>
-            </div>
-
-            <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '16px', borderRadius: '10px' }}>
-              <div style={{ fontSize: '12px', color: '#64748B' }}>Accuracy</div>
-              <div style={{ fontSize: '26px', fontWeight: 800, color: '#0284C7', marginTop: '4px' }}>
-                {result.correctCount + result.wrongCount > 0
-                  ? Math.round((result.correctCount / (result.correctCount + result.wrongCount)) * 100)
-                  : 0}%
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', fontSize: '13px', color: '#475569', marginBottom: '32px' }}>
-            <span style={{ color: '#059669' }}><strong>{result.correctCount}</strong> Correct</span>
-            <span style={{ color: '#DC2626' }}><strong>{result.wrongCount}</strong> Wrong</span>
-            <span style={{ color: '#64748B' }}><strong>{result.unansweredCount}</strong> Unanswered</span>
-          </div>
-
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-            <Button
-              variant="gold"
-              onClick={() => navigate(`/student/analysis/${result.attemptId}`)}
-            >
-              Review Detailed Answers & Solutions
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => navigate('/student')}
-            >
-              Return to Dashboard
-            </Button>
-          </div>
-        </Card>
-      </div>
-    );
+    return <MobileAppQrGate testTitle={test?.title} attemptId={result.attemptId} />;
   }
 
   // 4. LIVE TEST TAKING RUNNER INTERFACE

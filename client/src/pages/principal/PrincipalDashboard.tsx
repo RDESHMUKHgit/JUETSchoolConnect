@@ -127,7 +127,12 @@ export const PrincipalDashboard: React.FC = () => {
           <>
             {/* Live Metrics Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-              <Card variant="glass" padding="md">
+              <Card
+                variant="glass"
+                padding="md"
+                style={{ cursor: 'pointer', transition: 'transform 0.2s ease, box-shadow 0.2s ease' }}
+                onClick={() => navigate('/principal/students')}
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '13px', color: '#64748B' }}>Class 12 Students</span>
                   <GraduationCap size={20} style={{ color: '#059669' }} />
@@ -136,11 +141,16 @@ export const PrincipalDashboard: React.FC = () => {
                   {stats?.totalClass12Students || 0}
                 </div>
                 <div style={{ fontSize: '12px', color: stats?.pendingStudents > 0 ? '#D97706' : '#059669', marginTop: '4px', fontWeight: 500 }}>
-                  {stats?.pendingStudents > 0 ? `${stats.pendingStudents} awaiting your approval` : 'All enrolled approved'}
+                  {stats?.pendingStudents > 0 ? `${stats.pendingStudents} awaiting your approval &rarr;` : 'All enrolled approved &rarr;'}
                 </div>
               </Card>
 
-              <Card variant="glass" padding="md">
+              <Card
+                variant="glass"
+                padding="md"
+                style={{ cursor: 'pointer', transition: 'transform 0.2s ease, box-shadow 0.2s ease' }}
+                onClick={() => navigate('/principal/teachers')}
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '13px', color: '#64748B' }}>Teaching Faculty</span>
                   <Users size={20} style={{ color: '#0284C7' }} />
@@ -149,20 +159,25 @@ export const PrincipalDashboard: React.FC = () => {
                   {stats?.totalTeachers || 0}
                 </div>
                 <div style={{ fontSize: '12px', color: stats?.pendingTeachers > 0 ? '#D97706' : '#0284C7', marginTop: '4px', fontWeight: 500 }}>
-                  {stats?.pendingTeachers > 0 ? `${stats.pendingTeachers} pending profile completion/approval` : 'Active faculty roster'}
+                  {stats?.pendingTeachers > 0 ? `${stats.pendingTeachers} pending approval &rarr;` : 'Active faculty roster &rarr;'}
                 </div>
               </Card>
 
-              <Card variant="glass" padding="md">
+              <Card
+                variant="glass"
+                padding="md"
+                style={{ cursor: 'pointer', transition: 'transform 0.2s ease, box-shadow 0.2s ease' }}
+                onClick={() => navigate('/principal/mock-tests')}
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '13px', color: '#64748B' }}>Academic Focus</span>
+                  <span style={{ fontSize: '13px', color: '#64748B' }}>Standardized Mock Tests</span>
                   <BookOpen size={20} style={{ color: '#9A751A' }} />
                 </div>
                 <div style={{ fontSize: '32px', fontWeight: 800, color: '#0F172A', marginTop: '8px' }}>
                   Class 12
                 </div>
                 <div style={{ fontSize: '12px', color: '#475569', marginTop: '4px' }}>
-                  CBSE / ICSE Standardized Prep
+                  Inspect papers & syllabi &rarr;
                 </div>
               </Card>
 

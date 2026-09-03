@@ -146,34 +146,43 @@ export const submitTestAttempt = async (req: Request, res: Response): Promise<vo
     const maxMarks = Number(test.max_marks) || questions.length;
     const percentage = maxMarks > 0 ? Math.round((scoreObtained / maxMarks) * 100) : 0;
 
-    // 3. Save attempt record
-    const { data: attempt, error: attErr } = await supabase
-      .from('test_attempts')
-      .insert([
-        {
-          student_id: user.userId,
-          mock_test_id: testId,
-          submitted_at: new Date().toISOString(),
-          time_taken: time_taken || 0,
-          total_questions: questions.length,
-          attempted_questions: correctCount + wrongCount,
-          correct_ans: correctCount,
-          wrong_ans: wrongCount,
-          unanswered: unansweredCount,
-          score_obtained: scoreObtained,
-          percentage,
-          status: 'COMPLETED',
-        },
-      ])
-      .select()
-      .single();
+    // 3. Save attempt record with graceful column fallback
+    const baseAttemptRecord: any = {
+      student_id: user.userId,
+      mock_test_id: testId,
+      submitted_at: new Date().toISOString(),
+      time_taken: time_taken || 0,
+      total_questions: questions.length,
+      attempted_questions: correctCount + wrongCount,
+      correct_ans: correctCount,
+      wrong_ans: wrongCount,
+      unanswered: unansweredCount,
+    };
 
-    if (attErr) {
-      res.status(500).json({ success: false, message: 'Failed to record test attempt: ' + attErr.message });
-      return;
+    let attempt: any = null;
+    const { data: attWithMetrics, error: attErr1 } = await supabase
+      .from('test_attempts')
+      .insert([{ ...baseAttemptRecord, score_obtained: scoreObtained, percentage, status: 'COMPLETED' }])
+      .select()
+      .maybeSingle();
+
+    if (attErr1) {
+      const { data: attBase, error: attErr2 } = await supabase
+        .from('test_attempts')
+        .insert([baseAttemptRecord])
+        .select()
+        .maybeSingle();
+
+      if (attErr2 || !attBase) {
+        res.status(500).json({ success: false, message: 'Failed to record test attempt: ' + (attErr2?.message || attErr1.message) });
+        return;
+      }
+      attempt = attBase;
+    } else {
+      attempt = attWithMetrics;
     }
 
-    // 4. Save per-question responses
+    // 4. Save per-question responses in test_attempt_answers
     if (perQuestionResponses.length > 0) {
       const answersToInsert = perQuestionResponses.map((item) => ({
         attempt_id: attempt.attempt_id,
@@ -198,7 +207,7 @@ export const submitTestAttempt = async (req: Request, res: Response): Promise<vo
 
     res.status(200).json({
       success: true,
-      message: 'Test submitted and evaluated successfully!',
+      message: 'Test submitted successfully! Complete result and diagnostic analytics can only be viewed in the Jaypee Mobile App.',
       result: {
         attemptId: attempt.attempt_id,
         scoreObtained,
@@ -208,7 +217,35 @@ export const submitTestAttempt = async (req: Request, res: Response): Promise<vo
         wrongCount,
         unansweredCount,
         timeTaken: time_taken,
+        mobileAppRequired: true,
       },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Delivers full test paper WITH answer keys for TEACHERS, ADMIN, and EXAM_ADMIN
+ */
+export const getFullTestPaper = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { testId } = req.params;
+
+    const [testRes, qRes] = await Promise.all([
+      supabase.from('mock_test').select('*, subject:subject_id(name), exam:exam_id(name)').eq('mock_test_id', testId).single(),
+      supabase.from('questions').select('*').eq('mock_test_id', testId).order('question_id', { ascending: true }),
+    ]);
+
+    if (testRes.error || !testRes.data) {
+      res.status(404).json({ success: false, message: 'Mock test paper not found.' });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      mockTest: testRes.data,
+      questions: qRes.data || [],
     });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });

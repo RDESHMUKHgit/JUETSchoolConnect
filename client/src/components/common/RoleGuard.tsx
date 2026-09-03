@@ -24,7 +24,7 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
 
   // Not logged in
   if (!user) {
-    if (allowedRoles.includes('ADMIN')) {
+    if (allowedRoles.includes('ADMIN') || allowedRoles.includes('EXAM_ADMIN') || allowedRoles.includes('SUPER_ADMIN')) {
       return <Navigate to="/admin" replace state={{ from: location }} />;
     }
     return <Navigate to="/login" replace state={{ from: location }} />;
@@ -32,7 +32,8 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
 
   // Role mismatch
   if (!allowedRoles.includes(user.role)) {
-    if (user.role === 'ADMIN') return <Navigate to="/admin" replace />;
+    if (user.role === 'EXAM_ADMIN') return <Navigate to="/admin/exam" replace />;
+    if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') return <Navigate to="/admin" replace />;
     if (user.role === 'PRINCIPAL') return <Navigate to="/principal" replace />;
     if (user.role === 'TEACHER') return <Navigate to="/teacher" replace />;
     if (user.role === 'STUDENT') return <Navigate to="/student" replace />;

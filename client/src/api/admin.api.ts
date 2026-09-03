@@ -24,4 +24,9 @@ export const adminApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  generateMockTest: (data: { title?: string; subject?: string; duration_mins?: number; max_marks?: number; question_count?: number }) =>
+    apiRequest('/admin/mock-tests/generate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
