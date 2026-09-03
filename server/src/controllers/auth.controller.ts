@@ -1,0 +1,629 @@
+import { Request, Response } from 'express';
+import { supabase } from '../config/supabase.js';
+import { signToken, setAuthCookie, clearAuthCookie } from '../utils/token.utils.js';
+import { JwtUserPayload, UserRole } from '../types/auth.types.js';
+
+export const registerPrincipalInit = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { full_name, email, password } = req.body;
+
+    if (!full_name || !email || !password) {
+      res.status(400).json({ success: false, message: 'Full name, email, and password are required.' });
+      return;
+    }
+
+    // 1. Create Supabase Auth user
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name, role: 'PRINCIPAL' } },
+    });
+
+    if (authError) {
+      res.status(400).json({ success: false, message: authError.message });
+      return;
+    }
+
+    const authId = authData.user?.id;
+
+    // 2. Insert into public.principal with initial status NOT_COMPLETED and school_id NULL
+    const { data: principalData, error: dbError } = await supabase
+      .from('principal')
+      .insert([
+        {
+          full_name,
+          email,
+          auth_id: authId,
+          status: 'NOT_COMPLETED',
+          school_id: null,
+        },
+      ])
+      .select()
+      .single();
+
+    if (dbError) {
+      console.error('[Principal Init Insert Error]', dbError);
+      res.status(500).json({ success: false, message: 'Failed to record principal account. ' + dbError.message });
+      return;
+    }
+
+    const payload: JwtUserPayload = {
+      userId: principalData.principal_id,
+      authId,
+      email: principalData.email,
+      role: 'PRINCIPAL',
+      status: 'NOT_COMPLETED',
+      fullName: principalData.full_name,
+      schoolId: null,
+    };
+
+    const token = signToken(payload);
+    setAuthCookie(res, token);
+
+    res.status(201).json({
+      success: true,
+      message: 'Account created successfully. Please complete your principal profile.',
+      user: payload,
+      nextStep: '/principal/profile-setup',
+      token,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const completePrincipalProfile = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+    if (!user || user.role !== 'PRINCIPAL') {
+      res.status(403).json({ success: false, message: 'Access denied. Principal role required.' });
+      return;
+    }
+
+    const { phone, gender, designation, profile_photo_url } = req.body;
+
+    const { data: updated, error } = await supabase
+      .from('principal')
+      .update({
+        phone,
+        gender,
+        designation: designation || 'P',
+        profile_photo_url,
+        status: 'COMPLETED',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('principal_id', user.userId)
+      .select()
+      .single();
+
+    if (error) {
+      res.status(400).json({ success: false, message: 'Failed to update principal profile: ' + error.message });
+      return;
+    }
+
+    const payload: JwtUserPayload = {
+      userId: user.userId,
+      authId: user.authId,
+      email: user.email,
+      role: user.role,
+      schoolId: user.schoolId,
+      schoolName: user.schoolName,
+      status: 'COMPLETED',
+      fullName: updated.full_name,
+    };
+
+    const token = signToken(payload);
+    setAuthCookie(res, token);
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile details saved. Now please provide your school details.',
+      user: payload,
+      nextStep: '/principal/school-setup',
+      token,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const submitSchoolDetails = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+    if (!user || user.role !== 'PRINCIPAL') {
+      res.status(403).json({ success: false, message: 'Principal role required.' });
+      return;
+    }
+
+    const {
+      name,
+      state,
+      city,
+      pin,
+      board_affiliation,
+      registration_no,
+      contact_email,
+      official_phone,
+      website_url,
+      school_type,
+      medium_of_institution,
+    } = req.body;
+
+    if (!name || !state || !city) {
+      res.status(400).json({ success: false, message: 'School name, state, and city are mandatory.' });
+      return;
+    }
+
+    // 1. Insert into public.school with status PENDING
+    const { data: schoolData, error: schoolErr } = await supabase
+      .from('school')
+      .insert([
+        {
+          name,
+          state,
+          city,
+          pin,
+          board_affiliation: board_affiliation || 'CBSE',
+          registration_no: registration_no || `SCH-${Date.now()}`,
+          contact_email: contact_email || user.email,
+          official_phone,
+          website_url,
+          school_type: school_type || 'PRIVATE',
+          medium_of_institution: medium_of_institution || 'ENGLISH',
+          status: 'PENDING',
+        },
+      ])
+      .select()
+      .single();
+
+    if (schoolErr) {
+      res.status(400).json({ success: false, message: 'Failed to create school record: ' + schoolErr.message });
+      return;
+    }
+
+    // 2. Link school_id to principal and set principal status to PENDING
+    const { error: linkErr } = await supabase
+      .from('principal')
+      .update({
+        school_id: schoolData.school_id,
+        status: 'PENDING',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('principal_id', user.userId);
+
+    if (linkErr) {
+      res.status(500).json({ success: false, message: 'Failed to link principal to school: ' + linkErr.message });
+      return;
+    }
+
+    const payload: JwtUserPayload = {
+      userId: user.userId,
+      authId: user.authId,
+      email: user.email,
+      role: user.role,
+      schoolId: schoolData.school_id,
+      schoolName: schoolData.name,
+      status: 'PENDING',
+      fullName: user.fullName,
+    };
+
+    const token = signToken(payload);
+    setAuthCookie(res, token);
+
+    res.status(201).json({
+      success: true,
+      message: 'School registration submitted successfully! Your account is now under verification by Jaypee Platform Administration.',
+      user: payload,
+      nextStep: '/principal/verification',
+      token,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const registerStudentInit = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { full_name, email, password } = req.body;
+
+    if (!full_name || !email || !password) {
+      res.status(400).json({ success: false, message: 'Full name, email, and password are required.' });
+      return;
+    }
+
+    // 1. Supabase Auth signup
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name, role: 'STUDENT' } },
+    });
+
+    if (authError) {
+      res.status(400).json({ success: false, message: authError.message });
+      return;
+    }
+
+    const authId = authData.user?.id;
+
+    // 2. Insert into public.student with Class 12, status NOT_COMPLETED, school_id null
+    const { data: studentData, error: dbErr } = await supabase
+      .from('student')
+      .insert([
+        {
+          full_name,
+          email,
+          auth_id: authId,
+          class: 12,
+          status: 'NOT_COMPLETED',
+          school_id: null,
+        },
+      ])
+      .select()
+      .single();
+
+    if (dbErr) {
+      res.status(500).json({ success: false, message: 'Failed to create student profile: ' + dbErr.message });
+      return;
+    }
+
+    const payload: JwtUserPayload = {
+      userId: studentData.student_id,
+      authId,
+      email: studentData.email,
+      role: 'STUDENT',
+      status: 'NOT_COMPLETED',
+      fullName: studentData.full_name,
+      schoolId: null,
+    };
+
+    const token = signToken(payload);
+    setAuthCookie(res, token);
+
+    res.status(201).json({
+      success: true,
+      message: 'Student account created. Please select your verified school and complete details.',
+      user: payload,
+      nextStep: '/student/profile-setup',
+      token,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const completeStudentProfile = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+    if (!user || user.role !== 'STUDENT') {
+      res.status(403).json({ success: false, message: 'Student role required.' });
+      return;
+    }
+
+    const { school_id, phone_no, admission_no, apaar, dob, gender } = req.body;
+
+    if (!school_id) {
+      res.status(400).json({ success: false, message: 'Please select your school from the verified schools list.' });
+      return;
+    }
+
+    // Verify school exists and is VERIFIED
+    const { data: school, error: schoolErr } = await supabase
+      .from('school')
+      .select('school_id, name, status')
+      .eq('school_id', school_id)
+      .single();
+
+    if (schoolErr || !school || school.status !== 'VERIFIED') {
+      res.status(400).json({ success: false, message: 'Selected school must be a verified institution on the platform.' });
+      return;
+    }
+
+    const { data: updated, error: updErr } = await supabase
+      .from('student')
+      .update({
+        school_id,
+        phone_no,
+        admission_no,
+        apaar,
+        dob,
+        gender,
+        class: 12,
+        status: 'PENDING',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('student_id', user.userId)
+      .select()
+      .single();
+
+    if (updErr) {
+      res.status(400).json({ success: false, message: 'Failed to update student profile: ' + updErr.message });
+      return;
+    }
+
+    const payload: JwtUserPayload = {
+      userId: user.userId,
+      authId: user.authId,
+      email: user.email,
+      role: user.role,
+      schoolId: school.school_id,
+      schoolName: school.name,
+      status: 'PENDING',
+      fullName: updated.full_name,
+    };
+
+    const token = signToken(payload);
+    setAuthCookie(res, token);
+
+    res.status(200).json({
+      success: true,
+      message: 'Student profile submitted! Your account is now pending approval by your school administration.',
+      user: payload,
+      nextStep: '/student/verification',
+      token,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Public Role Login: Handles Student, Teacher, Principal.
+ * Strictly NO ADMIN role permitted through this endpoint!
+ */
+export const publicLogin = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, password, role } = req.body;
+
+    if (!email || !password || !role) {
+      res.status(400).json({ success: false, message: 'Email, password, and role are required.' });
+      return;
+    }
+
+    if (role === 'ADMIN') {
+      res.status(403).json({ success: false, message: 'Invalid role selection.' });
+      return;
+    }
+
+    // 1. Sign in via Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (authError) {
+      res.status(401).json({ success: false, message: 'Invalid credentials. Please verify your email and password.' });
+      return;
+    }
+
+    const authId = authData.user.id;
+    let userRecord: any = null;
+    let schoolName: string | null = null;
+    let schoolId: string | null = null;
+
+    if (role === 'PRINCIPAL') {
+      const { data: p } = await supabase
+        .from('principal')
+        .select('*, school:school_id(name, status)')
+        .or(`auth_id.eq.${authId},email.eq.${email}`)
+        .maybeSingle();
+
+      if (!p) {
+        res.status(404).json({ success: false, message: 'No Principal account found matching these credentials.' });
+        return;
+      }
+      userRecord = {
+        userId: p.principal_id,
+        email: p.email,
+        fullName: p.full_name,
+        role: 'PRINCIPAL',
+        status: p.status,
+      };
+      schoolId = p.school_id;
+      schoolName = p.school?.name || null;
+    } else if (role === 'TEACHER') {
+      const { data: t } = await supabase
+        .from('teachers')
+        .select('*, school:school_id(name, status)')
+        .or(`auth_id.eq.${authId},email.eq.${email}`)
+        .maybeSingle();
+
+      if (!t) {
+        res.status(404).json({ success: false, message: 'No Teacher account found matching these credentials.' });
+        return;
+      }
+      userRecord = {
+        userId: t.teacher_id,
+        email: t.email,
+        fullName: t.full_name,
+        role: 'TEACHER',
+        status: t.status,
+      };
+      schoolId = t.school_id;
+      schoolName = t.school?.name || null;
+    } else if (role === 'STUDENT') {
+      const { data: s } = await supabase
+        .from('student')
+        .select('*, school:school_id(name, status)')
+        .or(`auth_id.eq.${authId},email.eq.${email}`)
+        .maybeSingle();
+
+      if (!s) {
+        res.status(404).json({ success: false, message: 'No Student account found matching these credentials.' });
+        return;
+      }
+      userRecord = {
+        userId: s.student_id,
+        email: s.email,
+        fullName: s.full_name,
+        role: 'STUDENT',
+        status: s.status,
+      };
+      schoolId = s.school_id;
+      schoolName = s.school?.name || null;
+    }
+
+    const payload: JwtUserPayload = {
+      userId: userRecord.userId,
+      authId,
+      email: userRecord.email,
+      role: userRecord.role,
+      status: userRecord.status,
+      fullName: userRecord.fullName,
+      schoolId,
+      schoolName,
+    };
+
+    const token = signToken(payload);
+    setAuthCookie(res, token);
+
+    // Compute navigation destination based on role and status
+    let redirectUrl = `/${role.toLowerCase()}`;
+    if (userRecord.status === 'NOT_COMPLETED' || userRecord.status === 'NOT COMPLETED') {
+      redirectUrl = `/${role.toLowerCase()}/profile-setup`;
+    } else if (role === 'PRINCIPAL' && userRecord.status === 'COMPLETED') {
+      redirectUrl = `/principal/school-setup`;
+    } else if (userRecord.status === 'PENDING') {
+      redirectUrl = `/${role.toLowerCase()}/verification`;
+    } else if (userRecord.status === 'VERIFIED' || userRecord.status === 'ACTIVE') {
+      redirectUrl = `/${role.toLowerCase()}`;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Welcome back, ${payload.fullName || 'User'}!`,
+      user: payload,
+      redirectUrl,
+      token,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Dedicated Hidden Admin Login (/admin)
+ */
+export const adminLogin = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      res.status(400).json({ success: false, message: 'Admin email and password are required.' });
+      return;
+    }
+
+    // 1. Supabase Auth sign-in
+    const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (authErr) {
+      res.status(401).json({ success: false, message: 'Invalid admin credentials.' });
+      return;
+    }
+
+    // 2. Verify account exists in public.admin
+    const { data: adminRecord, error: adminErr } = await supabase
+      .from('admin')
+      .select('*')
+      .or(`auth_id.eq.${authData.user.id},email.eq.${email}`)
+      .maybeSingle();
+
+    if (adminErr || !adminRecord) {
+      res.status(403).json({ success: false, message: 'Access denied. Account is not registered as Platform Administrator.' });
+      return;
+    }
+
+    const payload: JwtUserPayload = {
+      userId: adminRecord.admin_id,
+      authId: adminRecord.auth_id,
+      email: adminRecord.email,
+      role: 'ADMIN',
+      status: 'VERIFIED',
+      fullName: adminRecord.full_name,
+      schoolId: null,
+    };
+
+    const token = signToken(payload);
+    setAuthCookie(res, token);
+
+    res.status(200).json({
+      success: true,
+      message: 'Platform Administrator authenticated.',
+      user: payload,
+      redirectUrl: '/admin',
+      token,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const getMe = async (req: Request, res: Response): Promise<void> => {
+  if (!req.user) {
+    res.status(401).json({ success: false, message: 'Not authenticated.' });
+    return;
+  }
+
+  // Refresh latest status from DB
+  let currentStatus = req.user.status;
+  let schoolName = req.user.schoolName;
+  let schoolId = req.user.schoolId;
+
+  try {
+    if (req.user.role === 'PRINCIPAL') {
+      const { data } = await supabase
+        .from('principal')
+        .select('status, school_id, school:school_id(name)')
+        .eq('principal_id', req.user.userId)
+        .maybeSingle();
+      if (data) {
+        currentStatus = data.status as any;
+        schoolId = data.school_id;
+        schoolName = (data.school as any)?.name || schoolName;
+      }
+    } else if (req.user.role === 'TEACHER') {
+      const { data } = await supabase
+        .from('teachers')
+        .select('status, school_id, school:school_id(name)')
+        .eq('teacher_id', req.user.userId)
+        .maybeSingle();
+      if (data) {
+        currentStatus = data.status as any;
+        schoolId = data.school_id;
+        schoolName = (data.school as any)?.name || schoolName;
+      }
+    } else if (req.user.role === 'STUDENT') {
+      const { data } = await supabase
+        .from('student')
+        .select('status, school_id, school:school_id(name)')
+        .eq('student_id', req.user.userId)
+        .maybeSingle();
+      if (data) {
+        currentStatus = data.status as any;
+        schoolId = data.school_id;
+        schoolName = (data.school as any)?.name || schoolName;
+      }
+    }
+  } catch (e) {
+    // Keep cached user on error
+  }
+
+  const payload: JwtUserPayload = {
+    ...req.user,
+    status: currentStatus,
+    schoolId,
+    schoolName,
+  };
+
+  res.status(200).json({
+    success: true,
+    user: payload,
+  });
+};
+
+export const logout = async (req: Request, res: Response): Promise<void> => {
+  clearAuthCookie(res);
+  res.status(200).json({ success: true, message: 'Successfully logged out.' });
+};
