@@ -5,7 +5,7 @@ export const getMockTests = async (_req: Request, res: Response): Promise<void> 
   try {
     const { data, error } = await supabase
       .from('mock_test')
-      .select('*, subject:subject_id(name), exam:exam_id(name)')
+      .select('*, subject:subject_id(name), exam:exam_id(name), mock_test_subjects(subject:subject_id(name))')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -13,7 +13,79 @@ export const getMockTests = async (_req: Request, res: Response): Promise<void> 
       return;
     }
 
-    res.status(200).json({ success: true, mockTests: data || [] });
+    // Flatten multi-subjects for client convenience
+    const formatted = (data || []).map((t: any) => {
+      const multiSubjs = t.mock_test_subjects?.map((ms: any) => ms.subject?.name).filter(Boolean) || [];
+      const primarySubj = t.subject?.name;
+      const allSubjects = multiSubjs.length > 0 ? multiSubjs : (primarySubj ? [primarySubj] : []);
+      return {
+        ...t,
+        subjects: allSubjects,
+      };
+    });
+
+    res.status(200).json({ success: true, mockTests: formatted });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const validateAccessKey = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { testId } = req.params;
+    const { accessKey } = req.body;
+
+    if (!accessKey || !accessKey.trim()) {
+      res.status(400).json({ success: false, message: 'Please enter the 6-digit access key provided by your teacher.' });
+      return;
+    }
+
+    const { data: test, error } = await supabase
+      .from('mock_test')
+      .select('mock_test_id, title, max_time_in_mins, access_key, access_key_expires_at')
+      .eq('mock_test_id', testId)
+      .single();
+
+    if (error || !test) {
+      res.status(404).json({ success: false, message: 'Mock test not found.' });
+      return;
+    }
+
+    if (!test.access_key) {
+      res.status(400).json({
+        success: false,
+        message: 'The examination key has not been generated yet. Please ask your teacher to activate the test session.',
+      });
+      return;
+    }
+
+    // Check if key matches (strictly 6-digit numeric match)
+    if (test.access_key.trim() !== accessKey.trim()) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid access key. Please double-check the 6-digit key with your teacher.',
+      });
+      return;
+    }
+
+    // Check if key is expired
+    if (!test.access_key_expires_at || new Date(test.access_key_expires_at) <= new Date()) {
+      res.status(400).json({
+        success: false,
+        message: 'This access key has expired (validity is 60 minutes). Please request your teacher to generate a new key.',
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Access key verified successfully.',
+      test: {
+        testId: test.mock_test_id,
+        title: test.title,
+        durationMins: test.max_time_in_mins || 60,
+      },
+    });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
   }

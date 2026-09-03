@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext.js';
 import { testApi } from '../../api/test.api.js';
+import { adminApi } from '../../api/admin.api.js';
 import { PortalSidebarLayout } from '../../layouts/PortalSidebarLayout.js';
 import { Card } from '../../components/ui/Card.js';
 import { Badge } from '../../components/ui/Badge.js';
 import { Button } from '../../components/ui/Button.js';
 import { Modal } from '../../components/ui/Modal.js';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner.js';
+import { MathRenderer } from '../../components/common/MathRenderer.js';
 import {
   BookOpen,
   Clock,
@@ -17,6 +19,7 @@ import {
   UploadCloud,
   UserCheck,
   Target,
+  KeyRound,
 } from 'lucide-react';
 
 export const ViewMockTests: React.FC<{ role?: 'PRINCIPAL' | 'TEACHER' }> = ({ role = 'PRINCIPAL' }) => {
@@ -24,27 +27,53 @@ export const ViewMockTests: React.FC<{ role?: 'PRINCIPAL' | 'TEACHER' }> = ({ ro
   const [mockTests, setMockTests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Inspection modal state
+  // Paper inspection modal state
   const [inspectedTest, setInspectedTest] = useState<any | null>(null);
   const [inspectedQuestions, setInspectedQuestions] = useState<any[]>([]);
   const [inspectLoading, setInspectLoading] = useState(false);
 
-  useEffect(() => {
-    async function loadTests() {
-      try {
-        setLoading(true);
-        const res = await testApi.getMockTests();
-        if (res.success) {
-          setMockTests(res.mockTests || []);
-        }
-      } catch (err) {
-        console.error('Error fetching mock tests:', err);
-      } finally {
-        setLoading(false);
+  // Access Key generation state (for Teachers)
+  const [keyGeneratingId, setKeyGeneratingId] = useState<string | null>(null);
+  const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
+
+  const loadTests = async () => {
+    try {
+      setLoading(true);
+      const res = await testApi.getMockTests();
+      if (res.success) {
+        setMockTests(res.mockTests || []);
       }
+    } catch (err) {
+      console.error('Error fetching mock tests:', err);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     loadTests();
   }, []);
+
+  const handleGenerateAccessKey = async (testId: string) => {
+    try {
+      setKeyGeneratingId(testId);
+      const res = await adminApi.generateMockTestAccessKey(testId);
+      if (res.success) {
+        alert(`New 6-digit access key generated: ${res.accessKey} (Valid for 60 minutes).`);
+        await loadTests();
+      }
+    } catch (err: any) {
+      alert('Failed to generate access key: ' + err.message);
+    } finally {
+      setKeyGeneratingId(null);
+    }
+  };
+
+  const handleCopyKey = (key: string, id: string) => {
+    navigator.clipboard.writeText(key);
+    setCopiedKeyId(id);
+    setTimeout(() => setCopiedKeyId(null), 2500);
+  };
 
   const handleInspectPaper = async (testId: string) => {
     try {
@@ -149,6 +178,81 @@ export const ViewMockTests: React.FC<{ role?: 'PRINCIPAL' | 'TEACHER' }> = ({ ro
                       Marking: <strong style={{ color: '#0F172A' }}>+4 / -1</strong>
                     </div>
                   </div>
+
+                  {/* 6-digit access key generator / display for teachers & principals */}
+                  {(() => {
+                    const isKeyValid = t.access_key && t.key_expires_at && new Date(t.key_expires_at) > new Date();
+                    return (
+                      <div
+                        style={{
+                          background: isKeyValid ? '#F0FDF4' : '#F8FAFC',
+                          border: isKeyValid ? '1px solid #BBF7D0' : '1px dashed #CBD5E1',
+                          borderRadius: '8px',
+                          padding: '10px 12px',
+                          marginBottom: '14px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              color: isKeyValid ? '#166534' : '#64748B',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.05em',
+                            }}
+                          >
+                            Student Access Key
+                          </span>
+                          {isKeyValid ? (
+                            <span style={{ fontSize: '11px', color: '#15803D', fontWeight: 600 }}>
+                              Expires in {Math.max(0, Math.round((new Date(t.key_expires_at).getTime() - Date.now()) / 60000))}m
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '11px', color: '#DC2626', fontWeight: 600 }}>
+                              Key Inactive
+                            </span>
+                          )}
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                          <code
+                            style={{
+                              fontSize: '18px',
+                              fontWeight: 800,
+                              letterSpacing: '0.15em',
+                              color: isKeyValid ? '#15803D' : '#94A3B8',
+                              fontFamily: 'monospace',
+                            }}
+                          >
+                            {isKeyValid ? t.access_key : '••••••'}
+                          </code>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            {isKeyValid && (
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                style={{ padding: '3px 8px', fontSize: '11px' }}
+                                onClick={() => handleCopyKey(t.access_key, t.mock_test_id)}
+                              >
+                                {copiedKeyId === t.mock_test_id ? 'Copied!' : 'Copy'}
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              style={{ padding: '3px 10px', fontSize: '11px' }}
+                              icon={<KeyRound size={12} />}
+                              loading={keyGeneratingId === t.mock_test_id}
+                              onClick={() => handleGenerateAccessKey(t.mock_test_id)}
+                            >
+                              {isKeyValid ? 'Regenerate' : 'Generate Key'}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '14px' }}>
@@ -230,17 +334,27 @@ export const ViewMockTests: React.FC<{ role?: 'PRINCIPAL' | 'TEACHER' }> = ({ ro
                         </Badge>
                       </div>
 
-                      <p
+                      <div
                         style={{
                           fontSize: '14px',
                           fontWeight: 600,
                           color: '#0F172A',
-                          lineHeight: 1.5,
+                          lineHeight: 1.6,
                           marginBottom: '14px',
                         }}
                       >
-                        {q.question_text}
-                      </p>
+                        <MathRenderer content={q.question_text} />
+                      </div>
+
+                      {q.image_url && (
+                        <div style={{ marginBottom: '14px', textAlign: 'center' }}>
+                          <img
+                            src={q.image_url}
+                            alt="Question Diagram"
+                            style={{ maxWidth: '100%', maxHeight: '240px', borderRadius: '8px', border: '1px solid #E2E8F0' }}
+                          />
+                        </div>
+                      )}
 
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '8px' }}>
                         {(q.option_array || []).map((opt: any, optIdx: number) => {
@@ -261,9 +375,11 @@ export const ViewMockTests: React.FC<{ role?: 'PRINCIPAL' | 'TEACHER' }> = ({ ro
                               }}
                             >
                               <span style={{ fontWeight: 800 }}>{opt.key}.</span>
-                              <span>{opt.text}</span>
+                              <div style={{ flex: 1 }}>
+                                <MathRenderer content={opt.text} />
+                              </div>
                               {isCorrect && (
-                                <CheckCircle2 size={14} style={{ marginLeft: 'auto', color: '#059669' }} />
+                                <CheckCircle2 size={14} style={{ marginLeft: 'auto', color: '#059669', flexShrink: 0 }} />
                               )}
                             </div>
                           );

@@ -327,3 +327,13 @@ BEGIN
   LIMIT 15;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+ALTER TABLE public.admin DROP CONSTRAINT IF EXISTS admin_role_check;
+ALTER TABLE public.admin ADD CONSTRAINT admin_role_check 
+  CHECK (role IN ('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'));
+
+ALTER TABLE public.test_attempts 
+  ADD COLUMN IF NOT EXISTS score_obtained numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS percentage numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS status character varying DEFAULT 'COMPLETED';

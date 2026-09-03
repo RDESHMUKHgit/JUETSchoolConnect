@@ -11,5 +11,10 @@ export const testApi = {
     }),
   getHistory: (studentId?: string) => apiRequest(`/tests/history${studentId ? `/${studentId}` : ''}`),
   getAttemptAnalysis: (attemptId: string) => apiRequest(`/tests/analysis/${attemptId}`),
+  validateAccessKey: (testId: string, accessKey: string) =>
+    apiRequest(`/tests/mock-tests/${testId}/validate-key`, {
+      method: 'POST',
+      body: JSON.stringify({ accessKey }),
+    }),
   getFullTestPaper: (testId: string) => apiRequest(`/tests/mock-tests/${testId}/full-paper`),
 };

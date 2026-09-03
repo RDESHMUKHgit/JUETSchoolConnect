@@ -67,12 +67,17 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
     }
   }
 
-  // 4. VERIFIED / ACTIVE -> If user tries to visit setup or verification page, send to their main dashboard
+  // 4. VERIFIED / ACTIVE -> If user tries to visit onboarding setup or verification waiting page, send to their main dashboard
+  const isOnboardingVerification =
+    currentPath === '/principal/verification' ||
+    currentPath === '/teacher/verification' ||
+    currentPath === '/student/verification';
+
   if (
     (user.status === 'VERIFIED' || user.status === 'ACTIVE') &&
     (currentPath.includes('profile-setup') ||
       currentPath.includes('school-setup') ||
-      currentPath.includes('verification'))
+      isOnboardingVerification)
   ) {
     return <Navigate to={`/${user.role.toLowerCase()}`} replace />;
   }

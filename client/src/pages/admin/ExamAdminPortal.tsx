@@ -1,90 +1,168 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext.js';
+import React, { useState, useEffect, useMemo } from 'react';
 import { adminApi } from '../../api/admin.api.js';
 import { testApi } from '../../api/test.api.js';
 import { PortalSidebarLayout } from '../../layouts/PortalSidebarLayout.js';
-import { Card } from '../../components/ui/Card.js';
-import { Button } from '../../components/ui/Button.js';
 import { Badge } from '../../components/ui/Badge.js';
+import { Button } from '../../components/ui/Button.js';
 import { Modal } from '../../components/ui/Modal.js';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner.js';
+import { MathRenderer } from '../../components/common/MathRenderer.js';
+import { QuestionPreviewModal } from '../../components/question-bank/QuestionPreviewModal.js';
+import { QuestionFormModal } from '../../components/question-bank/QuestionFormModal.js';
+import { ManualMockTestModal } from '../../components/question-bank/ManualMockTestModal.js';
+import { QuestionBankListTab } from '../../components/question-bank/QuestionBankListTab.js';
+import { PublishedTestsTab } from '../../components/question-bank/PublishedTestsTab.js';
 import {
+  Layers,
+  PlusCircle,
   Sparkles,
   BookOpen,
-  FileCheck2,
-  Clock,
-  Award,
-  Layers,
   CheckCircle2,
-  Eye,
-  PlusCircle,
-  HelpCircle,
 } from 'lucide-react';
 
 export const ExamAdminPortal: React.FC = () => {
-  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'question-bank' | 'published-tests'>('question-bank');
+
+  // Question Bank Data
+  const [bankQuestions, setBankQuestions] = useState<any[]>([]);
+  const [bankLoading, setBankLoading] = useState(true);
+
+  // Filters & Selection
+  const [searchQuery, setSearchQuery] = useState('');
+  const [subjectFilter, setSubjectFilter] = useState<'ALL' | 'Mathematics' | 'Physics' | 'Chemistry'>('ALL');
+  const [usageFilter, setUsageFilter] = useState<'ALL' | 'UNUSED' | 'USED'>('ALL');
+  const [selectedQuestionIds, setSelectedQuestionIds] = useState<string[]>([]);
+
+  // Modals & Forms
+  const [showQuestionForm, setShowQuestionForm] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<any | null>(null);
+  const [previewQuestion, setPreviewQuestion] = useState<any | null>(null);
+  const [showManualCreateModal, setShowManualCreateModal] = useState(false);
+
+  // Published Tests Data
   const [mockTests, setMockTests] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [testsLoading, setTestsLoading] = useState(false);
+  const [keyGeneratingId, setKeyGeneratingId] = useState<string | null>(null);
+  const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
 
-  // Generation Modal State
-  const [showGenModal, setShowGenModal] = useState(false);
-  const [genSubject, setGenSubject] = useState('Mathematics');
-  const [genTitle, setGenTitle] = useState('');
-  const [genDuration, setGenDuration] = useState('15');
-  const [genMarks, setGenMarks] = useState('20');
-  const [generating, setGenerating] = useState(false);
-  const [genSuccess, setGenSuccess] = useState<string | null>(null);
-
-  // Inspection Modal State
+  // Paper Inspection Modal
   const [inspectedTest, setInspectedTest] = useState<any | null>(null);
   const [inspectedQuestions, setInspectedQuestions] = useState<any[]>([]);
   const [inspectLoading, setInspectLoading] = useState(false);
 
+  // Alerts
+  const [notification, setNotification] = useState<string | null>(null);
+
+  const loadBankQuestions = async () => {
+    try {
+      setBankLoading(true);
+      const res = await adminApi.getQuestionBank();
+      if (res.success) {
+        setBankQuestions(res.questions || []);
+      }
+    } catch (err: any) {
+      console.error('Failed to load question bank:', err);
+    } finally {
+      setBankLoading(false);
+    }
+  };
+
   const loadTests = async () => {
     try {
-      setLoading(true);
+      setTestsLoading(true);
       const res = await testApi.getMockTests();
       if (res.success) {
         setMockTests(res.mockTests || []);
       }
-    } catch (err) {
-      console.error('Error fetching mock tests:', err);
+    } catch (err: any) {
+      console.error('Failed to load mock tests:', err);
     } finally {
-      setLoading(false);
+      setTestsLoading(false);
     }
   };
 
   useEffect(() => {
+    loadBankQuestions();
     loadTests();
   }, []);
 
-  const handleGenerate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setGenerating(true);
-      setGenSuccess(null);
-      const res = await adminApi.generateMockTest({
-        subject: genSubject,
-        title: genTitle || `JEE Main 2026 — ${genSubject} 5-Question Simulation`,
-        duration_mins: Number(genDuration) || 15,
-        max_marks: Number(genMarks) || 20,
-        question_count: 5,
-      });
+  // Filtered Questions
+  const filteredQuestions = useMemo(() => {
+    return bankQuestions.filter((q) => {
+      if (subjectFilter !== 'ALL' && q.subject_name !== subjectFilter) return false;
+      if (usageFilter === 'UNUSED' && q.is_used) return false;
+      if (usageFilter === 'USED' && !q.is_used) return false;
+      if (searchQuery.trim()) {
+        const needle = searchQuery.toLowerCase();
+        const textMatch = q.question_text?.toLowerCase().includes(needle);
+        const subMatch = q.subject_name?.toLowerCase().includes(needle);
+        if (!textMatch && !subMatch) return false;
+      }
+      return true;
+    });
+  }, [bankQuestions, subjectFilter, usageFilter, searchQuery]);
 
+  // Selected Questions List
+  const selectedQuestionsList = useMemo(() => {
+    return bankQuestions.filter((q) => selectedQuestionIds.includes(q.bank_question_id));
+  }, [bankQuestions, selectedQuestionIds]);
+
+  const handleToggleSelectQuestion = (id: string) => {
+    setSelectedQuestionIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllUnused = () => {
+    const unusedIds = filteredQuestions
+      .filter((q) => !q.is_used)
+      .map((q) => q.bank_question_id);
+    setSelectedQuestionIds((prev) => Array.from(new Set([...prev, ...unusedIds])));
+  };
+
+  const handleClearSelection = () => {
+    setSelectedQuestionIds([]);
+  };
+
+  const handleDeleteQuestion = async (id: string, text: string) => {
+    if (!window.confirm(`Are you sure you want to delete this question?\n\n"${text.substring(0, 80)}..."`)) {
+      return;
+    }
+    try {
+      const res = await adminApi.deleteBankQuestion(id);
       if (res.success) {
-        setGenSuccess(res.message || 'Mock test generated successfully!');
-        await loadTests();
-        setTimeout(() => {
-          setShowGenModal(false);
-          setGenSuccess(null);
-          setGenTitle('');
-        }, 1500);
+        setNotification('Question deleted successfully from Question Bank.');
+        setSelectedQuestionIds((prev) => prev.filter((item) => item !== id));
+        await loadBankQuestions();
+        setTimeout(() => setNotification(null), 3000);
+      } else {
+        alert(res.message || 'Deletion failed.');
       }
     } catch (err: any) {
-      alert('Failed to generate mock test: ' + err.message);
-    } finally {
-      setGenerating(false);
+      alert('Error deleting question: ' + err.message);
     }
+  };
+
+  const handleGenerateKey = async (testId: string) => {
+    try {
+      setKeyGeneratingId(testId);
+      const res = await adminApi.generateMockTestAccessKey(testId);
+      if (res.success) {
+        setNotification(`New 6-digit access key generated: ${res.accessKey} (Valid for 60 minutes)`);
+        await loadTests();
+        setTimeout(() => setNotification(null), 4000);
+      }
+    } catch (err: any) {
+      alert('Failed to generate key: ' + err.message);
+    } finally {
+      setKeyGeneratingId(null);
+    }
+  };
+
+  const handleCopyKey = (key: string, id: string) => {
+    navigator.clipboard.writeText(key);
+    setCopiedKeyId(id);
+    setTimeout(() => setCopiedKeyId(null), 2500);
   };
 
   const handleInspectPaper = async (testId: string) => {
@@ -105,196 +183,170 @@ export const ExamAdminPortal: React.FC = () => {
   };
 
   const navItems = [
-    { label: 'Mock Test Generation', path: '/admin/exam', icon: <Layers size={18} /> },
+    { label: 'Question Bank Workspace', path: '/admin/exam', icon: <Layers size={18} /> },
+    { label: 'Platform Administration', path: '/admin', icon: <BookOpen size={18} /> },
   ];
 
   return (
-    <PortalSidebarLayout portalTitle="Examination Authority" portalRole="ADMIN" navItems={navItems}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+    <PortalSidebarLayout portalTitle="Jaypee Examination Authority" portalRole="ADMIN" navItems={navItems}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         {/* Top Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#0F172A', margin: 0 }}>
-                Mock Test Generation & Blueprinting
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#0F172A' }}>
+                Examination Administration Cockpit
               </h1>
               <Badge variant="gold">EXAM_ADMIN</Badge>
             </div>
             <p style={{ color: '#475569', fontSize: '14px', marginTop: '4px' }}>
-              Create standardized, high-yield JEE Main assessment papers from calibrated question banks.
+              Manage the central Question Bank, author questions with LaTeX math equations, and publish standardized multi-subject mock tests.
             </p>
           </div>
 
-          <Button
-            variant="gold"
-            size="md"
-            icon={<Sparkles size={18} />}
-            onClick={() => {
-              setGenTitle(`JEE Main 2026 — ${genSubject} Practice Simulation`);
-              setShowGenModal(true);
-            }}
-          >
-            Generate New Mock Test
-          </Button>
-        </div>
-
-        {/* Notice */}
-        <div
-          style={{
-            background: 'linear-gradient(135deg, #FEFCE8 0%, #FFFFFF 100%)',
-            border: '1px solid #FEF08A',
-            padding: '16px 20px',
-            borderRadius: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '14px',
-          }}
-        >
-          <BookOpen size={24} style={{ color: '#9A751A', flexShrink: 0 }} />
-          <div style={{ fontSize: '13px', color: '#713F12', lineHeight: 1.5 }}>
-            <strong>Assessment Propagation Architecture:</strong> Any mock test generated here is instantly published across the network. <strong>Teachers</strong> can inspect questions and verified answer keys in their portal. <strong>Students</strong> can view test cards and start tests, while test results and solutions remain gated exclusively to the mobile app.
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <Button
+              variant="secondary"
+              icon={<PlusCircle size={16} />}
+              onClick={() => {
+                setEditingQuestion(null);
+                setShowQuestionForm(true);
+              }}
+            >
+              Author Question
+            </Button>
+            <Button
+              variant="gold"
+              icon={<Sparkles size={16} />}
+              onClick={() => {
+                if (selectedQuestionIds.length === 0) {
+                  alert('Please select at least 1 question using the checkboxes below to generate a mock test.');
+                  return;
+                }
+                setShowManualCreateModal(true);
+              }}
+            >
+              Publish Mock Test ({selectedQuestionIds.length} Selected)
+            </Button>
           </div>
         </div>
 
-        {/* Tests List */}
-        <div>
-          <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', marginBottom: '16px' }}>
-            Published Mock Tests ({mockTests.length})
-          </h2>
+        {/* Notification Alert */}
+        {notification && (
+          <div style={{ padding: '12px 16px', borderRadius: '8px', backgroundColor: '#ECFDF5', border: '1px solid #A7F3D0', color: '#059669', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle2 size={16} />
+            <span>{notification}</span>
+          </div>
+        )}
 
-          {loading ? (
-            <LoadingSpinner message="Fetching mock test registry..." />
-          ) : mockTests.length === 0 ? (
-            <Card variant="glass" padding="lg" style={{ textAlign: 'center' }}>
-              <p style={{ color: '#64748B', fontSize: '14px' }}>No mock tests found. Click "Generate New Mock Test" to create your first simulation.</p>
-            </Card>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '20px' }}>
-              {mockTests.map((t) => (
-                <Card key={t.mock_test_id} variant="glass" padding="lg" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                      <Badge variant="gold" size="sm">
-                        {t.subject?.name || 'Class 12 STEM'}
-                      </Badge>
-                      <span style={{ fontSize: '12px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Clock size={13} /> {t.max_time_in_mins || 15} Mins
-                      </span>
-                    </div>
-
-                    <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#0F172A', marginBottom: '8px' }}>
-                      {t.title}
-                    </h3>
-                    <p style={{ fontSize: '13px', color: '#64748B', lineHeight: 1.5, marginBottom: '16px' }}>
-                      {t.description || 'Standardized simulated examination paper.'}
-                    </p>
-
-                    <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#334155', marginBottom: '16px', background: '#F8FAFC', padding: '10px 12px', borderRadius: '8px' }}>
-                      <div>Questions: <strong>{t.total_questions || 5}</strong></div>
-                      <div>Max Marks: <strong>{t.max_marks || 20}</strong></div>
-                      <div>Marking: <strong>+4 / -1</strong></div>
-                    </div>
-                  </div>
-
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    icon={<Eye size={15} />}
-                    onClick={() => handleInspectPaper(t.mock_test_id)}
-                  >
-                    Inspect Full Paper & Answers
-                  </Button>
-                </Card>
-              ))}
-            </div>
-          )}
+        {/* View Switcher Tabs */}
+        <div style={{ display: 'flex', borderBottom: '1px solid #E2E8F0', gap: '24px' }}>
+          <button
+            onClick={() => setActiveTab('question-bank')}
+            style={{
+              padding: '12px 4px',
+              fontSize: '15px',
+              fontWeight: 700,
+              color: activeTab === 'question-bank' ? '#9A751A' : '#64748B',
+              borderBottom: activeTab === 'question-bank' ? '2.5px solid #9A751A' : 'none',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            Question Bank ({bankQuestions.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('published-tests')}
+            style={{
+              padding: '12px 4px',
+              fontSize: '15px',
+              fontWeight: 700,
+              color: activeTab === 'published-tests' ? '#9A751A' : '#64748B',
+              borderBottom: activeTab === 'published-tests' ? '2.5px solid #9A751A' : 'none',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            Published Tests & Access Keys ({mockTests.length})
+          </button>
         </div>
 
-        {/* Mock Test Generator Modal */}
-        <Modal isOpen={showGenModal} onClose={() => setShowGenModal(false)} title="Generate High-Yield Mock Test" maxWidth="560px">
-          <form onSubmit={handleGenerate} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {genSuccess && (
-              <div style={{ padding: '10px 14px', borderRadius: '8px', backgroundColor: '#ECFDF5', color: '#059669', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <CheckCircle2 size={16} />
-                <span>{genSuccess}</span>
-              </div>
-            )}
+        {/* TAB 1: QUESTION BANK WORKSPACE */}
+        {activeTab === 'question-bank' && (
+          <QuestionBankListTab
+            filteredQuestions={filteredQuestions}
+            bankLoading={bankLoading}
+            selectedQuestionIds={selectedQuestionIds}
+            searchQuery={searchQuery}
+            subjectFilter={subjectFilter}
+            usageFilter={usageFilter}
+            onSearchChange={setSearchQuery}
+            onSubjectFilterChange={setSubjectFilter}
+            onUsageFilterChange={setUsageFilter}
+            onSelectAllUnused={handleSelectAllUnused}
+            onClearSelection={handleClearSelection}
+            onToggleSelectQuestion={handleToggleSelectQuestion}
+            onPreview={setPreviewQuestion}
+            onEdit={(q) => {
+              setEditingQuestion(q);
+              setShowQuestionForm(true);
+            }}
+            onDelete={handleDeleteQuestion}
+          />
+        )}
 
-            <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                Subject Blueprint
-              </label>
-              <select
-                value={genSubject}
-                onChange={(e) => {
-                  setGenSubject(e.target.value);
-                  setGenTitle(`JEE Main 2026 — ${e.target.value} Practice Simulation`);
-                }}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', backgroundColor: '#FFFFFF' }}
-              >
-                <option value="Mathematics">Mathematics</option>
-                <option value="Physics">Physics</option>
-                <option value="Chemistry">Chemistry</option>
-              </select>
-            </div>
+        {/* TAB 2: PUBLISHED TESTS & ACCESS KEY GENERATION */}
+        {activeTab === 'published-tests' && (
+          <PublishedTestsTab
+            mockTests={mockTests}
+            testsLoading={testsLoading}
+            copiedKeyId={copiedKeyId}
+            keyGeneratingId={keyGeneratingId}
+            onCopyKey={handleCopyKey}
+            onGenerateKey={handleGenerateKey}
+            onInspectPaper={handleInspectPaper}
+          />
+        )}
 
-            <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                Mock Test Title
-              </label>
-              <input
-                type="text"
-                required
-                value={genTitle}
-                onChange={(e) => setGenTitle(e.target.value)}
-                placeholder="e.g. JEE Main 2026 — Mathematics Speed Simulation"
-                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px' }}
-              />
-            </div>
+        {/* Question Preview Modal */}
+        <QuestionPreviewModal
+          question={previewQuestion}
+          onClose={() => setPreviewQuestion(null)}
+          onEdit={(q) => {
+            setEditingQuestion(q);
+            setShowQuestionForm(true);
+          }}
+        />
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                  Duration (Minutes)
-                </label>
-                <input
-                  type="number"
-                  min="5"
-                  max="180"
-                  value={genDuration}
-                  onChange={(e) => setGenDuration(e.target.value)}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px' }}
-                />
-              </div>
+        {/* Question Author / Edit Form Modal */}
+        <QuestionFormModal
+          isOpen={showQuestionForm}
+          initialData={editingQuestion}
+          onClose={() => {
+            setShowQuestionForm(false);
+            setEditingQuestion(null);
+          }}
+          onSaved={async () => {
+            setNotification('Question Bank updated successfully.');
+            await loadBankQuestions();
+            setTimeout(() => setNotification(null), 3500);
+          }}
+        />
 
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                  Max Marks
-                </label>
-                <input
-                  type="number"
-                  min="10"
-                  value={genMarks}
-                  onChange={(e) => setGenMarks(e.target.value)}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px' }}
-                />
-              </div>
-            </div>
-
-            <div style={{ background: '#F8FAFC', padding: '12px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#64748B' }}>
-              ⚡ <strong>Automatic Generation:</strong> Exactly <strong>5 calibrated questions</strong> with validated options and answer keys will be extracted from <code>jee_paper.json</code> and attached to this mock test.
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
-              <Button variant="ghost" type="button" onClick={() => setShowGenModal(false)}>
-                Cancel
-              </Button>
-              <Button variant="gold" type="submit" loading={generating} icon={<Sparkles size={16} />}>
-                Generate 5-Question Test Paper
-              </Button>
-            </div>
-          </form>
-        </Modal>
+        {/* Manual Mock Test Creator Modal */}
+        <ManualMockTestModal
+          isOpen={showManualCreateModal}
+          selectedQuestions={selectedQuestionsList}
+          onClose={() => setShowManualCreateModal(false)}
+          onTestCreated={async () => {
+            setSelectedQuestionIds([]);
+            await loadBankQuestions();
+            await loadTests();
+            setActiveTab('published-tests');
+          }}
+        />
 
         {/* Paper Inspection Modal */}
         <Modal
@@ -309,76 +361,41 @@ export const ExamAdminPortal: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', maxHeight: '70vh', overflowY: 'auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC', padding: '12px 16px', borderRadius: '8px' }}>
                 <div>
-                  <span style={{ fontSize: '12px', color: '#64748B' }}>Total Questions</span>
-                  <div style={{ fontWeight: 800, color: '#0F172A', fontSize: '16px' }}>{inspectedQuestions.length} Questions</div>
+                  <div style={{ fontSize: '13px', color: '#64748B' }}>Total Questions: <strong>{inspectedQuestions.length}</strong></div>
+                  <div style={{ fontSize: '13px', color: '#64748B' }}>Duration: <strong>{inspectedTest?.max_time_in_mins} mins</strong></div>
                 </div>
                 <div>
-                  <span style={{ fontSize: '12px', color: '#64748B' }}>Time Limit</span>
-                  <div style={{ fontWeight: 800, color: '#0F172A', fontSize: '16px' }}>{inspectedTest?.max_time_in_mins} Mins</div>
-                </div>
-                <div>
-                  <span style={{ fontSize: '12px', color: '#64748B' }}>Maximum Marks</span>
-                  <div style={{ fontWeight: 800, color: '#0F172A', fontSize: '16px' }}>{inspectedTest?.max_marks} Marks</div>
+                  <Badge variant="gold">Marks: {inspectedTest?.max_marks}</Badge>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {inspectedQuestions.map((q, idx) => {
-                  const correctKey = q.answers?.correct || q.answers?.key || q.answers;
-                  return (
-                    <div
-                      key={q.question_id || idx}
-                      style={{
-                        padding: '16px',
-                        borderRadius: '10px',
-                        border: '1px solid #E2E8F0',
-                        backgroundColor: '#FFFFFF',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 800, color: '#9A751A' }}>
-                          QUESTION {idx + 1}
-                        </span>
-                        <Badge variant="gold" size="sm">
-                          Answer Key: Option {String(correctKey).toUpperCase()}
-                        </Badge>
-                      </div>
-
-                      <p style={{ fontSize: '14px', fontWeight: 600, color: '#0F172A', lineHeight: 1.5, marginBottom: '14px' }}>
-                        {q.question_text}
-                      </p>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '8px' }}>
-                        {(q.option_array || []).map((opt: any, optIdx: number) => {
-                          const isCorrect = String(opt.key).toUpperCase() === String(correctKey).toUpperCase();
-                          return (
-                            <div
-                              key={optIdx}
-                              style={{
-                                padding: '8px 12px',
-                                borderRadius: '6px',
-                                border: isCorrect ? '1px solid #10B981' : '1px solid #E2E8F0',
-                                backgroundColor: isCorrect ? '#ECFDF5' : '#F8FAFC',
-                                color: isCorrect ? '#065F46' : '#334155',
-                                fontSize: '13px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                              }}
-                            >
-                              <span style={{ fontWeight: 800 }}>{opt.key}.</span>
-                              <span>{opt.text}</span>
-                              {isCorrect && (
-                                <CheckCircle2 size={14} style={{ marginLeft: 'auto', color: '#059669' }} />
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              {inspectedQuestions.map((q, idx) => (
+                <div key={q.question_id} style={{ border: '1px solid #E2E8F0', borderRadius: '8px', padding: '14px' }}>
+                  <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '8px' }}>
+                    Q{idx + 1}. <MathRenderer content={q.question_text} />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '13px' }}>
+                    {Array.isArray(q.option_array) &&
+                      q.option_array.map((opt: any) => {
+                        const isCorrect = Array.isArray(q.answers) ? q.answers.includes(opt.key) : q.answers === opt.key;
+                        return (
+                          <div
+                            key={opt.key}
+                            style={{
+                              padding: '6px 10px',
+                              borderRadius: '6px',
+                              backgroundColor: isCorrect ? '#ECFDF5' : '#F8FAFC',
+                              border: isCorrect ? '1px solid #10B981' : '1px solid #E2E8F0',
+                              fontWeight: isCorrect ? 700 : 400,
+                            }}
+                          >
+                            <strong>{opt.key}:</strong> <MathRenderer content={opt.text} />
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </Modal>

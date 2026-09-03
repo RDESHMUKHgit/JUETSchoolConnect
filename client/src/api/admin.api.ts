@@ -29,4 +29,41 @@ export const adminApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  // Question Bank operations
+  getQuestionBank: () => apiRequest('/admin/question-bank'),
+  createBankQuestion: (data: any) =>
+    apiRequest('/admin/question-bank', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateBankQuestion: (id: string, data: any) =>
+    apiRequest(`/admin/question-bank/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteBankQuestion: (id: string) =>
+    apiRequest(`/admin/question-bank/${id}`, {
+      method: 'DELETE',
+    }),
+
+  // Manual multi-subject mock test creation & access key generator
+  manualCreateMockTest: (data: {
+    title: string;
+    description?: string;
+    subject_ids?: string[];
+    duration_mins?: number;
+    max_marks?: number;
+    passing_marks?: number;
+    negative_marking?: boolean;
+    selected_bank_question_ids: string[];
+  }) =>
+    apiRequest('/admin/mock-tests/manual-create', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  generateMockTestAccessKey: (mockTestId: string) =>
+    apiRequest(`/admin/mock-tests/${mockTestId}/generate-key`, {
+      method: 'POST',
+    }),
 };

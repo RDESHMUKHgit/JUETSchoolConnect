@@ -36,5 +36,17 @@ export const teacherApi = {
       method: 'PUT',
     }),
 
+  manualAddStudent: (data: { fullName: string; email: string }) =>
+    apiRequest('/teacher/students/manual-add', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateStudentStatus: (studentId: string, status: 'ACTIVE' | 'SUSPENDED') =>
+    apiRequest(`/teacher/students/${studentId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
+
   getStudentDiagnostic: (studentId: string) => apiRequest(`/teacher/students/${studentId}/diagnostic`),
 };
