@@ -4,14 +4,19 @@
   "description": "Express backend with Supabase, JWT, cookies, and role-based guards for Jaypee School Connect",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "nodemon --exec ts-node src/index.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "seed:admin": "ts-node src/scripts/seed-admin.ts",
     "seed:exam-admin": "ts-node src/scripts/seed-exam-admin.ts",
     "seed:mock-tests": "ts-node src/scripts/seed-mock-tests.ts"
   },
-  "keywords": ["express", "supabase", "jwt", "school-connect"],
+  "keywords": [
+    "express",
+    "supabase",
+    "jwt",
+    "school-connect"
+  ],
   "author": "Jaypee School Connect Team",
   "license": "ISC",
   "dependencies": {
@@ -33,6 +38,7 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.9",
-    "ts-node": "^10.9.2"
+    "ts-node": "^10.9.2",
+    "tsx": "^4.23.13"
   }
 }
