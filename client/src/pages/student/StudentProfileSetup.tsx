@@ -7,7 +7,6 @@ import { Input } from '../../components/ui/Input.js';
 import { Select } from '../../components/ui/Select.js';
 import { Button } from '../../components/ui/Button.js';
 import { Badge } from '../../components/ui/Badge.js';
-import { ImageUpload } from '../../components/ui/ImageUpload.js';
 import {
   School,
   GraduationCap,
@@ -21,7 +20,6 @@ import {
   Calendar,
   IdCard,
   User,
-  Camera,
   Send,
 } from 'lucide-react';
 
@@ -51,9 +49,6 @@ export const StudentProfileSetup: React.FC = () => {
   const [currentPassword, setCurrentPassword] = useState<string>('');
   const [newPassword, setNewPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
-
-  // Step 4: Profile Picture
-  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string>(user?.profile_photo_url || '');
 
   // Status & Error
   const [loading, setLoading] = useState<boolean>(false);
@@ -140,8 +135,6 @@ export const StudentProfileSetup: React.FC = () => {
         }
       }
       setCurrentStep(4);
-    } else if (currentStep === 4) {
-      setCurrentStep(5);
     }
   };
 
@@ -168,7 +161,6 @@ export const StudentProfileSetup: React.FC = () => {
         gender,
         new_password: newPassword || undefined,
         current_password: currentPassword || undefined,
-        profile_photo_url: profilePhotoUrl || undefined,
       });
       if (user?.status === 'VERIFIED' || user?.status === 'ACTIVE') {
         navigate('/student');
@@ -186,8 +178,7 @@ export const StudentProfileSetup: React.FC = () => {
     { step: 1, title: 'School Selection' },
     { step: 2, title: 'Teacher Mentor' },
     { step: 3, title: 'Student Info' },
-    { step: 4, title: 'Profile Photo' },
-    { step: 5, title: 'Review & Submit' },
+    { step: 4, title: 'Review & Submit' },
   ];
 
   const selectedSchoolObj = verifiedSchools.find((s) => s.value === (selectedSchoolId || user?.schoolId));
@@ -435,45 +426,14 @@ export const StudentProfileSetup: React.FC = () => {
                 Back
               </Button>
               <Button variant="gold" size="lg" icon={<ArrowRight size={16} />} onClick={handleNextStep} style={{ flex: 1 }}>
-                Continue to Profile Photo
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* STEP 4: Profile Photograph */}
-        {currentStep === 4 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            <div style={{ background: '#F8FAFC', padding: '14px 16px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0F172A', fontWeight: 700, fontSize: '14px' }}>
-                <Camera size={18} style={{ color: '#0284C7' }} />
-                <span>Candidate Photograph</span>
-              </div>
-              <p style={{ fontSize: '12px', color: '#64748B', marginTop: '4px', margin: 0 }}>
-                Upload a clear frontal passport-style photo for examination cockpit identification (Max 300 KB).
-              </p>
-            </div>
-
-            <ImageUpload
-              bucket="question-images"
-              value={profilePhotoUrl}
-              onChange={setProfilePhotoUrl}
-              label="Student Profile Picture (Max 300 KB)"
-            />
-
-            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-              <Button variant="secondary" size="lg" icon={<ArrowLeft size={16} />} onClick={() => setCurrentStep(3)}>
-                Back
-              </Button>
-              <Button variant="gold" size="lg" icon={<ArrowRight size={16} />} onClick={handleNextStep} style={{ flex: 1 }}>
                 Continue to Review & Submit
               </Button>
             </div>
           </div>
         )}
 
-        {/* STEP 5: Review & Submit */}
-        {currentStep === 5 && (
+        {/* STEP 4: Review & Submit */}
+        {currentStep === 4 && (
           <form onSubmit={handleSubmitFinal} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <div style={{ background: '#ECFDF5', padding: '14px 16px', borderRadius: '8px', border: '1px solid #A7F3D0' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#065F46', fontWeight: 700, fontSize: '14px' }}>
@@ -486,17 +446,9 @@ export const StudentProfileSetup: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', background: '#F8FAFC', padding: '14px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
-              {profilePhotoUrl ? (
-                <img
-                  src={profilePhotoUrl}
-                  alt="Candidate Photo"
-                  style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #E2E8F0' }}
-                />
-              ) : (
-                <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#64748B' }}>
-                  {(user?.fullName || 'S').charAt(0).toUpperCase()}
-                </div>
-              )}
+              <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#F0F9FF', border: '2px solid #BAE6FD', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#0284C7', fontSize: '22px' }}>
+                {(user?.fullName || 'S').charAt(0).toUpperCase()}
+              </div>
               <div>
                 <h3 style={{ fontSize: '17px', fontWeight: 800, color: '#0F172A', margin: 0 }}>
                   {user?.fullName || 'Student'}
@@ -538,7 +490,7 @@ export const StudentProfileSetup: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-              <Button variant="secondary" size="lg" icon={<ArrowLeft size={16} />} onClick={() => setCurrentStep(4)}>
+              <Button variant="secondary" size="lg" icon={<ArrowLeft size={16} />} onClick={() => setCurrentStep(3)}>
                 Back
               </Button>
               <Button

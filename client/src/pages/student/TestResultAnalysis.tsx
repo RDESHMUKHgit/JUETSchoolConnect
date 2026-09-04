@@ -4,7 +4,7 @@ import { testApi } from '../../api/test.api.js';
 import { PortalSidebarLayout } from '../../layouts/PortalSidebarLayout.js';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner.js';
 import { MobileAppQrGate } from '../../components/common/MobileAppQrGate.js';
-import { GraduationCap, Target, FileText } from 'lucide-react';
+import { getStudentNavItems } from '../../utils/navigation.js';
 
 export const TestResultAnalysis: React.FC = () => {
   const { attemptId } = useParams<{ attemptId: string }>();
@@ -30,11 +30,7 @@ export const TestResultAnalysis: React.FC = () => {
     loadAnalysis();
   }, [attemptId]);
 
-  const navItems = [
-    { label: 'Dashboard', path: '/student', icon: <GraduationCap size={18} /> },
-    { label: 'Attempt Mock Tests', path: '/student/mock-tests', icon: <Target size={18} /> },
-    { label: 'Test History', path: '/student/history', icon: <FileText size={18} /> },
-  ];
+  const navItems = getStudentNavItems();
 
   if (loading) {
     return <LoadingSpinner message="Querying test attempt..." />;

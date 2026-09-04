@@ -10,7 +10,6 @@ import { Button } from '../../components/ui/Button.js';
 import { Modal } from '../../components/ui/Modal.js';
 import { Input } from '../../components/ui/Input.js';
 import { Select } from '../../components/ui/Select.js';
-import { ImageUpload } from '../../components/ui/ImageUpload.js';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner.js';
 import { getTeacherNavItems } from '../../utils/navigation.js';
 import {
@@ -42,7 +41,6 @@ export const TeacherDashboard: React.FC = () => {
 
   // Edit Profile Modal state
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
-  const [profilePhotoUrl, setProfilePhotoUrl] = useState(user?.profile_photo_url || '');
   const [fullName, setFullName] = useState(user?.fullName || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [empId, setEmpId] = useState(user?.teachers_emp_id || '');
@@ -56,7 +54,6 @@ export const TeacherDashboard: React.FC = () => {
 
   useEffect(() => {
     if (user) {
-      setProfilePhotoUrl(user.profile_photo_url || '');
       setFullName(user.fullName || '');
       setPhone(user.phone || '');
       setEmpId(user.teachers_emp_id || '');
@@ -81,7 +78,6 @@ export const TeacherDashboard: React.FC = () => {
         specialization,
         qualification,
         gender,
-        profile_photo_url: profilePhotoUrl || undefined,
       });
       if (res.success) {
         await refreshUser();
@@ -155,17 +151,9 @@ export const TeacherDashboard: React.FC = () => {
             <Card variant="glass" padding="md" style={{ borderLeft: '4px solid #0284C7', backgroundColor: '#FFFFFF' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  {user?.profile_photo_url ? (
-                    <img
-                      src={user.profile_photo_url}
-                      alt={user?.fullName || 'Teacher'}
-                      style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #E2E8F0' }}
-                    />
-                  ) : (
-                    <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#F0F9FF', border: '2px solid #BAE6FD', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0284C7', fontWeight: 800, fontSize: '22px' }}>
-                      {(user?.fullName || 'F').charAt(0).toUpperCase()}
-                    </div>
-                  )}
+                  <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#F0F9FF', border: '2px solid #BAE6FD', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0284C7', fontWeight: 800, fontSize: '22px' }}>
+                    {(user?.fullName || 'F').charAt(0).toUpperCase()}
+                  </div>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', margin: 0 }}>
@@ -337,16 +325,6 @@ export const TeacherDashboard: React.FC = () => {
         )}
 
         <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <ImageUpload
-            bucket="question-images"
-            value={profilePhotoUrl}
-            onChange={(url) => setProfilePhotoUrl(url)}
-            label="Faculty Profile Photo (Max 300 KB)"
-            helperText="Upload a professional passport or faculty badge photo (Max 300 KB)."
-            aspectRatio="square"
-            maxWidth="130px"
-          />
-
           <Input
             label="Full Name *"
             type="text"

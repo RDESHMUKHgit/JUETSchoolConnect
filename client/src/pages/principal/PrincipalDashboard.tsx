@@ -10,7 +10,6 @@ import { Button } from '../../components/ui/Button.js';
 import { Modal } from '../../components/ui/Modal.js';
 import { Input } from '../../components/ui/Input.js';
 import { Select } from '../../components/ui/Select.js';
-import { ImageUpload } from '../../components/ui/ImageUpload.js';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner.js';
 import { getPrincipalNavItems } from '../../utils/navigation.js';
 import {
@@ -53,7 +52,6 @@ export const PrincipalDashboard: React.FC = () => {
 
   // Edit Profile / Update Information Modal state
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
-  const [profilePhotoUrl, setProfilePhotoUrl] = useState(user?.profile_photo_url || '');
   const [principalPhone, setPrincipalPhone] = useState(user?.phone || '');
   const [designation, setDesignation] = useState<'P' | 'VP'>((user?.designation as any) || 'P');
   const [officialPhone, setOfficialPhone] = useState('');
@@ -87,7 +85,6 @@ export const PrincipalDashboard: React.FC = () => {
   // Sync state when user or modal changes
   useEffect(() => {
     if (user) {
-      setProfilePhotoUrl(user.profile_photo_url || '');
       setPrincipalPhone(user.phone || '');
       if (user.designation) setDesignation(user.designation as any);
     }
@@ -135,7 +132,6 @@ export const PrincipalDashboard: React.FC = () => {
         phone: principalPhone,
         gender: 'MALE',
         designation,
-        profile_photo_url: profilePhotoUrl || undefined,
       });
 
       // 2. Update School institutional details
@@ -215,17 +211,9 @@ export const PrincipalDashboard: React.FC = () => {
             <Card variant="glass" padding="md" style={{ borderLeft: '4px solid #C59B27', backgroundColor: '#FFFFFF' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  {user?.profile_photo_url ? (
-                    <img
-                      src={user.profile_photo_url}
-                      alt={user?.fullName || 'Principal'}
-                      style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #E2E8F0' }}
-                    />
-                  ) : (
-                    <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#FEFCE8', border: '2px solid #FEF08A', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9A751A', fontWeight: 800, fontSize: '22px' }}>
-                      {(user?.fullName || 'P').charAt(0).toUpperCase()}
-                    </div>
-                  )}
+                  <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#FEFCE8', border: '2px solid #FEF08A', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9A751A', fontWeight: 800, fontSize: '22px' }}>
+                    {(user?.fullName || 'P').charAt(0).toUpperCase()}
+                  </div>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', margin: 0 }}>
@@ -385,16 +373,6 @@ export const PrincipalDashboard: React.FC = () => {
         )}
 
         <form onSubmit={handleUpdateProfileSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <ImageUpload
-            bucket="question-images"
-            value={profilePhotoUrl}
-            onChange={(url) => setProfilePhotoUrl(url)}
-            label="Principal Profile Photo (Max 300 KB)"
-            helperText="Upload official headshot photo (Max 300 KB)."
-            aspectRatio="square"
-            maxWidth="130px"
-          />
-
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <Input
               label="Principal Phone Number *"

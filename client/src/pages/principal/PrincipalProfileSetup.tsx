@@ -5,14 +5,12 @@ import { Card } from '../../components/ui/Card.js';
 import { Input } from '../../components/ui/Input.js';
 import { Select } from '../../components/ui/Select.js';
 import { Button } from '../../components/ui/Button.js';
-import { ImageUpload } from '../../components/ui/ImageUpload.js';
 import { UserCheck, Phone, ShieldCheck, ArrowRight } from 'lucide-react';
 
 export const PrincipalProfileSetup: React.FC = () => {
   const navigate = useNavigate();
   const { user, completePrincipalProfile } = useAuth();
 
-  const [profilePhotoUrl, setProfilePhotoUrl] = useState(user?.profile_photo_url || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [gender, setGender] = useState('MALE');
   const [designation, setDesignation] = useState<'P' | 'VP'>('P');
@@ -28,7 +26,6 @@ export const PrincipalProfileSetup: React.FC = () => {
         phone,
         gender,
         designation,
-        profile_photo_url: profilePhotoUrl || undefined,
       });
       if (user?.status === 'VERIFIED' || user?.status === 'ACTIVE') {
         navigate('/principal');
@@ -70,13 +67,6 @@ export const PrincipalProfileSetup: React.FC = () => {
         )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <ImageUpload
-            bucket="question-images"
-            value={profilePhotoUrl}
-            onChange={setProfilePhotoUrl}
-            label="Principal Profile Picture (Max 300 KB)"
-          />
-
           <Input
             label="Official Phone / Mobile Number"
             type="tel"
