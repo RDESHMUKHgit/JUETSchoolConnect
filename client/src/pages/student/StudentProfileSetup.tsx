@@ -6,14 +6,22 @@ import { Card } from '../../components/ui/Card.js';
 import { Input } from '../../components/ui/Input.js';
 import { Select } from '../../components/ui/Select.js';
 import { Button } from '../../components/ui/Button.js';
-import { School, GraduationCap, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Badge } from '../../components/ui/Badge.js';
+import { School, GraduationCap, ArrowRight, Lock, Key, Sparkles, CheckCircle2 } from 'lucide-react';
 
 export const StudentProfileSetup: React.FC = () => {
   const navigate = useNavigate();
   const { user, completeStudentProfile } = useAuth();
 
   const [verifiedSchools, setVerifiedSchools] = useState<Array<{ value: string; label: string }>>([]);
-  const [selectedSchoolId, setSelectedSchoolId] = useState('');
+  const [selectedSchoolId, setSelectedSchoolId] = useState(user?.schoolId || '');
+  
+  // Password Setup Fields (One-time only!)
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  // Personal Details
   const [phoneNo, setPhoneNo] = useState('');
   const [admissionNo, setAdmissionNo] = useState('');
   const [apaar, setApaar] = useState('');
@@ -21,48 +29,65 @@ export const StudentProfileSetup: React.FC = () => {
   const [gender, setGender] = useState('MALE');
 
   const [loading, setLoading] = useState(false);
-  const [fetchingSchools, setFetchingSchools] = useState(true);
+  const [fetchingSchools, setFetchingSchools] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadSchools() {
-      try {
-        setFetchingSchools(true);
-        const res = await schoolApi.getVerifiedSchools();
-        if (res.success && res.schools) {
-          setVerifiedSchools(
-            res.schools.map((s: any) => ({
-              value: s.school_id,
-              label: `${s.name} (${s.city}, ${s.state})`,
-            }))
-          );
+    if (!user?.schoolId) {
+      async function loadSchools() {
+        try {
+          setFetchingSchools(true);
+          const res = await schoolApi.getVerifiedSchools();
+          if (res.success && res.schools) {
+            setVerifiedSchools(
+              res.schools.map((s: any) => ({
+                value: s.school_id,
+                label: `${s.name} (${s.city}, ${s.state})`,
+              }))
+            );
+          }
+        } catch (err) {
+          console.error('Error fetching schools:', err);
+        } finally {
+          setFetchingSchools(false);
         }
-      } catch (err) {
-        console.error('Error fetching schools:', err);
-      } finally {
-        setFetchingSchools(false);
       }
+      loadSchools();
     }
-    loadSchools();
-  }, []);
+  }, [user?.schoolId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedSchoolId) {
-      setError('Please select your verified school from the list.');
+    setError(null);
+
+    const schoolIdToUse = user?.schoolId || selectedSchoolId;
+    if (!schoolIdToUse) {
+      setError('Please select your school from the verified list.');
       return;
+    }
+
+    if (newPassword) {
+      if (newPassword.length < 6) {
+        setError('New password must be at least 6 characters long.');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        setError('New password and confirm password do not match.');
+        return;
+      }
     }
 
     try {
       setLoading(true);
-      setError(null);
       const nextStep = await completeStudentProfile({
-        school_id: selectedSchoolId,
+        school_id: schoolIdToUse,
         phone_no: phoneNo,
         admission_no: admissionNo,
         apaar: apaar || null,
         dob: dob || null,
         gender,
+        new_password: newPassword || undefined,
+        current_password: currentPassword || undefined,
       });
       navigate(nextStep);
     } catch (err: any) {
@@ -74,100 +99,204 @@ export const StudentProfileSetup: React.FC = () => {
 
   return (
     <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px' }}>
-      <Card variant="glass" padding="lg" style={{ width: '100%', maxWidth: '580px', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', boxShadow: 'var(--shadow-lg)' }}>
+      <Card
+        variant="glass"
+        padding="lg"
+        style={{
+          width: '100%',
+          maxWidth: '620px',
+          backgroundColor: '#FFFFFF',
+          border: '1px solid #E2E8F0',
+          boxShadow: 'var(--shadow-lg)',
+        }}
+      >
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', color: '#FFFFFF', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
-            <GraduationCap size={26} />
+          <div
+            style={{
+              width: '52px',
+              height: '52px',
+              borderRadius: '14px',
+              background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+              color: '#FFFFFF',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '12px',
+            }}
+          >
+            <GraduationCap size={28} />
           </div>
           <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A' }}>
-            School Selection & Academic Profile
+            Set Password & Complete Profile
           </h2>
           <p style={{ fontSize: '13px', color: '#475569', marginTop: '4px' }}>
-            Step 2 of 2: Link your account to your accredited high school
+            Complete your enrollment details. Your profile will be submitted to your teacher for activation.
           </p>
         </div>
 
-        <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px' }}>
-          <p style={{ fontSize: '13px', color: '#334155', margin: 0 }}>
-            Student: <strong style={{ color: '#0F172A' }}>{user?.fullName || user?.email}</strong> | Class: <strong style={{ color: '#059669' }}>12th Grade</strong>
-          </p>
+        {/* School & Student Context */}
+        <div
+          style={{
+            background: '#F8FAFC',
+            border: '1px solid #E2E8F0',
+            padding: '14px 18px',
+            borderRadius: '10px',
+            marginBottom: '20px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '8px',
+          }}
+        >
+          <div>
+            <div style={{ fontSize: '12px', color: '#64748B' }}>Enrolled Student</div>
+            <strong style={{ color: '#0F172A', fontSize: '14px' }}>{user?.fullName || user?.email}</strong>
+          </div>
+          <div>
+            <div style={{ fontSize: '12px', color: '#64748B' }}>Institution</div>
+            <strong style={{ color: '#9A751A', fontSize: '14px' }}>{user?.schoolName || 'Linked School'}</strong>
+          </div>
+          <Badge variant="gold" size="sm">Class 12</Badge>
         </div>
 
         {error && (
-          <div style={{ padding: '12px', borderRadius: '8px', background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', fontSize: '13px', marginBottom: '16px' }}>
+          <div
+            style={{
+              padding: '12px 16px',
+              borderRadius: '8px',
+              background: '#FEF2F2',
+              border: '1px solid #FECACA',
+              color: '#DC2626',
+              fontSize: '13px',
+              marginBottom: '18px',
+            }}
+          >
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Only schools currently in our DB */}
-          <Select
-            label="Select Your Verified High School"
-            value={selectedSchoolId}
-            onChange={(e) => setSelectedSchoolId(e.target.value)}
-            options={verifiedSchools}
-            placeholder={fetchingSchools ? 'Loading verified schools from database...' : 'Choose your school'}
-            required
-          />
-
-          {verifiedSchools.length === 0 && !fetchingSchools && (
-            <p style={{ fontSize: '12px', color: '#F59E0B' }}>
-              No verified schools found in the database yet. Ask your school principal to register your school first!
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* 1. One-time Password Setup Section */}
+          <div
+            style={{
+              background: 'linear-gradient(145deg, #FFFBEB 0%, #FFFFFF 100%)',
+              border: '1px solid #FDE68A',
+              padding: '18px',
+              borderRadius: '10px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <Key size={18} style={{ color: '#D97706' }} />
+              <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#92400E', margin: 0 }}>
+                Set Your Permanent Password (One-Time Setup)
+              </h3>
+            </div>
+            <p style={{ fontSize: '12px', color: '#B45309', marginBottom: '14px' }}>
+              Replace your temporary onboarding password with your own secure personal password.
             </p>
-          )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            <Input
-              label="Admission / Roll Number"
-              placeholder="e.g. 12B-042"
-              value={admissionNo}
-              onChange={(e) => setAdmissionNo(e.target.value)}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <Input
+                label="Temporary Password (Optional if already logged in)"
+                type="password"
+                placeholder="Enter current temporary password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+              />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <Input
+                  label="New Permanent Password"
+                  type="password"
+                  required
+                  placeholder="Min. 6 characters"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+                <Input
+                  label="Confirm Permanent Password"
+                  type="password"
+                  required
+                  placeholder="Re-enter new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* School Selector if not pre-linked */}
+          {!user?.schoolId && (
+            <Select
+              label="Select Your Accredited High School"
+              value={selectedSchoolId}
+              onChange={(e) => setSelectedSchoolId(e.target.value)}
+              options={verifiedSchools}
+              placeholder={fetchingSchools ? 'Loading accredited schools...' : 'Choose your school'}
               required
             />
-            <Input
-              label="APAAR / Automated Student ID"
-              placeholder="12-digit APAAR ID"
-              value={apaar}
-              onChange={(e) => setApaar(e.target.value)}
-              helperText="Optional government student ID"
+          )}
+
+          {/* 2. Personal & Academic Details */}
+          <div>
+            <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', marginBottom: '12px' }}>
+              Academic & Contact Information
+            </h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+              <Input
+                label="Admission / Roll Number"
+                placeholder="e.g. 12B-042"
+                value={admissionNo}
+                onChange={(e) => setAdmissionNo(e.target.value)}
+                required
+              />
+              <Input
+                label="APAAR / Automated Student ID"
+                placeholder="12-digit APAAR ID"
+                value={apaar}
+                onChange={(e) => setApaar(e.target.value)}
+                helperText="Optional government student ID"
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+              <Input
+                label="Contact Phone / WhatsApp"
+                placeholder="+91 98765 43210"
+                value={phoneNo}
+                onChange={(e) => setPhoneNo(e.target.value)}
+                required
+              />
+              <Input
+                label="Date of Birth"
+                type="date"
+                value={dob}
+                onChange={(e) => setDob(e.target.value)}
+                required
+              />
+            </div>
+
+            <Select
+              label="Gender"
+              value={gender}
+              onChange={(e) => setGender(e.target.value)}
+              options={[
+                { value: 'MALE', label: 'Male' },
+                { value: 'FEMALE', label: 'Female' },
+                { value: 'OTHER', label: 'Other' },
+              ]}
             />
           </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            <Input
-              label="Contact Phone / WhatsApp"
-              placeholder="+91 98765 43210"
-              value={phoneNo}
-              onChange={(e) => setPhoneNo(e.target.value)}
-            />
-            <Input
-              label="Date of Birth"
-              type="date"
-              value={dob}
-              onChange={(e) => setDob(e.target.value)}
-            />
-          </div>
-
-          <Select
-            label="Gender"
-            value={gender}
-            onChange={(e) => setGender(e.target.value)}
-            options={[
-              { value: 'MALE', label: 'Male' },
-              { value: 'FEMALE', label: 'Female' },
-              { value: 'OTHER', label: 'Other' },
-            ]}
-          />
 
           <Button
             type="submit"
-            variant="primary"
+            variant="gold"
             size="lg"
             loading={loading}
             icon={<ArrowRight size={18} />}
             style={{ width: '100%', marginTop: '8px' }}
           >
-            Submit for School Approval
+            Submit for Teacher Verification
           </Button>
         </form>
       </Card>

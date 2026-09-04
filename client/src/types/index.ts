@@ -1,4 +1,4 @@
-export type UserRole = 'ADMIN' | 'PRINCIPAL' | 'TEACHER' | 'STUDENT';
+export type UserRole = 'ADMIN' | 'SUPER_ADMIN' | 'EXAM_ADMIN' | 'PRINCIPAL' | 'TEACHER' | 'STUDENT';
 
 export type UserStatus = 
   | 'NOT_COMPLETED'

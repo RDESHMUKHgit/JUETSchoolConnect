@@ -299,40 +299,92 @@ export const completeStudentProfile = async (req: Request, res: Response): Promi
       return;
     }
 
-    const { school_id, phone_no, admission_no, apaar, dob, gender } = req.body;
+    const { school_id, phone_no, admission_no, apaar, dob, gender, new_password, current_password } = req.body;
 
-    if (!school_id) {
-      res.status(400).json({ success: false, message: 'Please select your school from the verified schools list.' });
+    // Retrieve existing student record
+    const { data: currentStudent, error: fetchErr } = await supabase
+      .from('student')
+      .select('*, school:school_id(school_id, name)')
+      .eq('student_id', user.userId)
+      .single();
+
+    if (fetchErr || !currentStudent) {
+      res.status(404).json({ success: false, message: 'Student record not found.' });
       return;
     }
 
-    // Verify school exists and is VERIFIED
-    const { data: school, error: schoolErr } = await supabase
-      .from('school')
-      .select('school_id, name, status')
-      .eq('school_id', school_id)
-      .single();
+    // Determine target school ID (either existing teacher-linked school or passed ID)
+    const effectiveSchoolId = currentStudent.school_id || school_id;
 
-    if (schoolErr || !school || school.status !== 'VERIFIED') {
-      res.status(400).json({ success: false, message: 'Selected school must be a verified institution on the platform.' });
+    if (!effectiveSchoolId) {
+      res.status(400).json({ success: false, message: 'Student must be linked to an accredited school.' });
       return;
+    }
+
+    // 1. One-time Password Update (if student is in NOT_COMPLETED status)
+    if (new_password) {
+      if (new_password.length < 6) {
+        res.status(400).json({ success: false, message: 'New password must be at least 6 characters long.' });
+        return;
+      }
+
+      console.log(`🔐 Updating one-time permanent password for student: ${user.email}`);
+
+      // Attempt to sign in to obtain an authenticated session for updating password
+      const authClient = supabase;
+      let sessionEstablished = false;
+
+      // Try with provided current_password
+      if (current_password) {
+        const { error: signErr } = await authClient.auth.signInWithPassword({
+          email: user.email,
+          password: current_password,
+        });
+        if (!signErr) sessionEstablished = true;
+      }
+
+      // If no current_password or sign-in failed, attempt using formula password
+      if (!sessionEstablished && currentStudent.school) {
+        const { generateStudentTempPassword } = await import('../utils/student.utils.js');
+        const tempFormulaPassword = generateStudentTempPassword(currentStudent.full_name, currentStudent.school.name);
+        const { error: formulaSignErr } = await authClient.auth.signInWithPassword({
+          email: user.email,
+          password: tempFormulaPassword,
+        });
+        if (!formulaSignErr) sessionEstablished = true;
+      }
+
+      if (sessionEstablished) {
+        const { error: updPwErr } = await authClient.auth.updateUser({ password: new_password });
+        if (updPwErr && !updPwErr.message.includes('should be different')) {
+          console.warn('⚠️ Supabase Auth password update notice:', updPwErr.message);
+        } else {
+          console.log(`✅ Permanent password successfully set for student: ${user.email}`);
+        }
+      }
+    }
+
+    // 2. Update Student Profile in database
+    const updateData: Record<string, any> = {
+      phone_no: phone_no || currentStudent.phone_no,
+      admission_no: admission_no || currentStudent.admission_no,
+      apaar: apaar || currentStudent.apaar,
+      dob: dob || currentStudent.dob,
+      gender: gender || currentStudent.gender,
+      class: 12,
+      status: 'PENDING', // Status becomes PENDING for teacher verification!
+      updated_at: new Date().toISOString(),
+    };
+
+    if (!currentStudent.school_id && effectiveSchoolId) {
+      updateData.school_id = effectiveSchoolId;
     }
 
     const { data: updated, error: updErr } = await supabase
       .from('student')
-      .update({
-        school_id,
-        phone_no,
-        admission_no,
-        apaar,
-        dob,
-        gender,
-        class: 12,
-        status: 'PENDING',
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('student_id', user.userId)
-      .select()
+      .select('*, school:school_id(school_id, name)')
       .single();
 
     if (updErr) {
@@ -345,8 +397,8 @@ export const completeStudentProfile = async (req: Request, res: Response): Promi
       authId: user.authId,
       email: user.email,
       role: user.role,
-      schoolId: school.school_id,
-      schoolName: school.name,
+      schoolId: updated.school_id,
+      schoolName: updated.school?.name || user.schoolName,
       status: 'PENDING',
       fullName: updated.full_name,
     };
@@ -356,7 +408,7 @@ export const completeStudentProfile = async (req: Request, res: Response): Promi
 
     res.status(200).json({
       success: true,
-      message: 'Student profile submitted! Your account is now pending approval by your school administration.',
+      message: 'Password set and profile submitted! Your details have been sent to your teacher for verification.',
       user: payload,
       nextStep: '/student/verification',
       token,
@@ -535,11 +587,15 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+    const isExamAdmin = adminRecord.role === 'EXAM_ADMIN' || adminRecord.email === 'examadmin@jaypee.ac.in';
+    const effectiveRole: UserRole = isExamAdmin ? 'EXAM_ADMIN' : (adminRecord.role === 'SUPER_ADMIN' ? 'SUPER_ADMIN' : 'ADMIN');
+    const redirectUrl = isExamAdmin ? '/admin/exam' : '/admin';
+
     const payload: JwtUserPayload = {
       userId: adminRecord.admin_id,
       authId: adminRecord.auth_id,
       email: adminRecord.email,
-      role: 'ADMIN',
+      role: effectiveRole,
       status: 'VERIFIED',
       fullName: adminRecord.full_name,
       schoolId: null,
@@ -550,9 +606,9 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
 
     res.status(200).json({
       success: true,
-      message: 'Platform Administrator authenticated.',
+      message: `${isExamAdmin ? 'Examination' : 'Platform'} Administrator authenticated.`,
       user: payload,
-      redirectUrl: '/admin',
+      redirectUrl,
       token,
     });
   } catch (err: any) {
@@ -570,9 +626,21 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
   let currentStatus = req.user.status;
   let schoolName = req.user.schoolName;
   let schoolId = req.user.schoolId;
+  let effectiveRole = req.user.role;
 
   try {
-    if (req.user.role === 'PRINCIPAL') {
+    if (req.user.role === 'ADMIN' || req.user.role === 'SUPER_ADMIN' || req.user.role === 'EXAM_ADMIN') {
+      const { data } = await supabase
+        .from('admin')
+        .select('status, full_name, role, email')
+        .eq('admin_id', req.user.userId)
+        .maybeSingle();
+      if (data) {
+        currentStatus = data.status as any;
+        const isExamAdmin = data.role === 'EXAM_ADMIN' || data.email === 'examadmin@jaypee.ac.in';
+        effectiveRole = isExamAdmin ? 'EXAM_ADMIN' : (data.role as any);
+      }
+    } else if (req.user.role === 'PRINCIPAL') {
       const { data } = await supabase
         .from('principal')
         .select('status, school_id, school:school_id(name)')
@@ -612,6 +680,7 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
 
   const payload: JwtUserPayload = {
     ...req.user,
+    role: effectiveRole,
     status: currentStatus,
     schoolId,
     schoolName,

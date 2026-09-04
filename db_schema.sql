@@ -228,7 +228,7 @@ CREATE TABLE public.admin (
     email varchar NOT NULL UNIQUE,
     phone varchar,
     role varchar NOT NULL DEFAULT 'ADMIN'
-        CHECK (role IN ('ADMIN', 'SUPER_ADMIN')),
+        CHECK (role IN ('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN')),
     status varchar NOT NULL DEFAULT 'ACTIVE'
         CHECK (status IN ('PENDING', 'ACTIVE', 'SUSPENDED')),
     profile_photo_url text,
@@ -242,58 +242,98 @@ CREATE TABLE public.admin (
         ON DELETE CASCADE
 );
 
--- ==============================================================================
--- PRODUCTION ONBOARDING & VERIFICATION SCHEMA CONSTRAINTS
--- Execute the following block in the Supabase SQL Editor:
--- ==============================================================================
-
--- 1. Kill any broken auth triggers attempting to write to nonexistent "profiles"
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users CASCADE;
-DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
-
--- 2. School: Add status column with verification check constraint
-ALTER TABLE public.school 
-ADD COLUMN IF NOT EXISTS status character varying NOT NULL DEFAULT 'PENDING' 
-CHECK (status::text = ANY (ARRAY['PENDING'::text, 'ACTIVE'::text, 'VERIFIED'::text, 'REJECTED'::text]));
-
--- 3. Principal: Allow draft registration (null school_id) and complete status lifecycle
+-- 1. Allow principal to exist temporarily before school is registered
 ALTER TABLE public.principal ALTER COLUMN school_id DROP NOT NULL;
+
+-- 2. Expand allowed status values for onboarding states
 ALTER TABLE public.principal DROP CONSTRAINT IF EXISTS principal_status_check;
+
 ALTER TABLE public.principal ADD CONSTRAINT principal_status_check 
 CHECK (status::text = ANY (ARRAY[
   'NOT_COMPLETED'::text, 
-  'NOT COMPLETED'::text, 
   'COMPLETED'::text, 
   'PENDING'::text, 
   'ACTIVE'::text, 
-  'VERIFIED'::text, 
-  'SUSPENDED'::text,
-  'REJECTED'::text
+  'SUSPENDED'::text
 ]));
 
--- 4. Teachers: Support full onboarding and principal verification lifecycle
+-- 1. Kill the broken trigger and function trying to write to "profiles"
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users CASCADE;
+DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
+
+-- 2. Add the missing 'status' column to public.school so school verification works
+ALTER TABLE public.school 
+ADD COLUMN IF NOT EXISTS status character varying NOT NULL DEFAULT 'PENDING' 
+CHECK (status::text = ANY (ARRAY['PENDING'::text, 'VERIFIED'::text, 'REJECTED'::text]));
+
+-- 3. Ensure principal.school_id is nullable for the 3-step draft flow
+ALTER TABLE public.principal ALTER COLUMN school_id DROP NOT NULL;
+
+-- 4. Ensure principal.status supports draft states without crashing
+ALTER TABLE public.principal DROP CONSTRAINT IF EXISTS principal_status_check;
+
+ALTER TABLE public.principal ADD CONSTRAINT principal_status_check 
+CHECK (status::text = ANY (ARRAY[
+  'NOT_COMPLETED'::text, 
+  'COMPLETED'::text, 
+  'PENDING'::text, 
+  'ACTIVE'::text, 
+  'SUSPENDED'::text
+]));
+
+
+-- Allow NOT_COMPLETED and REJECTED in teachers status
 ALTER TABLE public.teachers DROP CONSTRAINT IF EXISTS teachers_status_check;
+
 ALTER TABLE public.teachers ADD CONSTRAINT teachers_status_check 
 CHECK (status::text = ANY (ARRAY[
   'NOT_COMPLETED'::text, 
-  'NOT COMPLETED'::text, 
   'PENDING'::text, 
   'ACTIVE'::text, 
-  'VERIFIED'::text, 
-  'SUSPENDED'::text,
-  'REJECTED'::text
+  'SUSPENDED'::text
 ]));
 
--- 5. Student: Allow initial Step 0 registration (null school_id) and verification lifecycle
-ALTER TABLE public.student ALTER COLUMN school_id DROP NOT NULL;
+-- Expand student table status constraints
 ALTER TABLE public.student DROP CONSTRAINT IF EXISTS student_status_check;
+
 ALTER TABLE public.student ADD CONSTRAINT student_status_check 
 CHECK (status::text = ANY (ARRAY[
   'NOT_COMPLETED'::text, 
-  'NOT COMPLETED'::text, 
   'PENDING'::text, 
   'ACTIVE'::text, 
-  'VERIFIED'::text, 
-  'SUSPENDED'::text,
-  'REJECTED'::text
+  'SUSPENDED'::text
 ]));
+
+-- 1. Enable Trigram Extension for real fuzzy text matching
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- 2. Create a GIN index on school name for instant searching
+CREATE INDEX IF NOT EXISTS school_name_trgm_idx ON public.school USING gin (name gin_trgm_ops);
+
+-- 3. Create fuzzy search RPC function
+CREATE OR REPLACE FUNCTION search_schools(search_term text)
+RETURNS SETOF public.school AS $$
+BEGIN
+  RETURN QUERY
+  SELECT *
+  FROM public.school
+  WHERE 
+    similarity(name, search_term) > 0.15
+    OR name ILIKE ('%' || search_term || '%')
+    OR city ILIKE ('%' || search_term || '%')
+  ORDER BY 
+    similarity(name, search_term) DESC,
+    name ASC
+  LIMIT 15;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+ALTER TABLE public.admin DROP CONSTRAINT IF EXISTS admin_role_check;
+ALTER TABLE public.admin ADD CONSTRAINT admin_role_check 
+  CHECK (role IN ('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'));
+
+ALTER TABLE public.test_attempts 
+  ADD COLUMN IF NOT EXISTS score_obtained numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS percentage numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS status character varying DEFAULT 'COMPLETED';

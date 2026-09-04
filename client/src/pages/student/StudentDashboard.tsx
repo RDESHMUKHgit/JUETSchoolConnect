@@ -127,7 +127,12 @@ export const StudentDashboard: React.FC = () => {
           <>
             {/* Snapshot Metrics Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-              <Card variant="glass" padding="md">
+              <Card
+                variant="glass"
+                padding="md"
+                style={{ cursor: 'pointer', transition: 'transform 0.2s ease, box-shadow 0.2s ease' }}
+                onClick={() => navigate('/student/history')}
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '13px', color: '#64748B' }}>Tests Completed</span>
                   <FileText size={20} style={{ color: '#0284C7' }} />
@@ -136,11 +141,16 @@ export const StudentDashboard: React.FC = () => {
                   {totalAttempts}
                 </div>
                 <div style={{ fontSize: '12px', color: '#475569', marginTop: '4px' }}>
-                  All-India mock sessions
+                  All-India mock sessions &rarr;
                 </div>
               </Card>
 
-              <Card variant="glass" padding="md">
+              <Card
+                variant="glass"
+                padding="md"
+                style={{ cursor: 'pointer', transition: 'transform 0.2s ease, box-shadow 0.2s ease' }}
+                onClick={() => navigate('/student/history')}
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '13px', color: '#64748B' }}>Average Score</span>
                   <TrendingUp size={20} style={{ color: '#059669' }} />
@@ -149,11 +159,16 @@ export const StudentDashboard: React.FC = () => {
                   {avgPercentage}%
                 </div>
                 <div style={{ fontSize: '12px', color: '#475569', marginTop: '4px' }}>
-                  Across all attempts
+                  Across all attempts &rarr;
                 </div>
               </Card>
 
-              <Card variant="glass" padding="md">
+              <Card
+                variant="glass"
+                padding="md"
+                style={{ cursor: 'pointer', transition: 'transform 0.2s ease, box-shadow 0.2s ease' }}
+                onClick={() => navigate('/student/history')}
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '13px', color: '#64748B' }}>Best Score</span>
                   <Award size={20} style={{ color: '#9A751A' }} />
@@ -162,11 +177,16 @@ export const StudentDashboard: React.FC = () => {
                   {bestAttempt ? `${bestAttempt.percentage}%` : 'N/A'}
                 </div>
                 <div style={{ fontSize: '12px', color: '#475569', marginTop: '4px' }}>
-                  Highest percentile achieved
+                  Highest percentile achieved &rarr;
                 </div>
               </Card>
 
-              <Card variant="glass" padding="md">
+              <Card
+                variant="glass"
+                padding="md"
+                style={{ cursor: 'pointer', transition: 'transform 0.2s ease, box-shadow 0.2s ease' }}
+                onClick={() => navigate('/student/mock-tests')}
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '13px', color: '#64748B' }}>Tests Available</span>
                   <Target size={20} style={{ color: '#7C3AED' }} />
@@ -175,7 +195,7 @@ export const StudentDashboard: React.FC = () => {
                   {mockTests.length}
                 </div>
                 <div style={{ fontSize: '12px', color: '#475569', marginTop: '4px' }}>
-                  Ready to attempt today
+                  Ready to attempt today &rarr;
                 </div>
               </Card>
             </div>

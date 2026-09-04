@@ -7,21 +7,44 @@ import {
   getPlatformMetrics,
   createMockTest,
   createQuestion,
+  generateMockTestPaper,
 } from '../controllers/admin.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
 import { requireRole } from '../middlewares/role.middleware.js';
 
+import {
+  getQuestionBank,
+  createBankQuestion,
+  updateBankQuestion,
+  deleteBankQuestion,
+} from '../controllers/admin.question.controller.js';
+import {
+  manualCreateMockTest,
+  generateMockTestAccessKey,
+} from '../controllers/admin.mocktest.controller.js';
+
 const router = Router();
 
-// All routes strictly protected by Platform Admin role
-router.use(authenticate, requireRole('ADMIN'));
+router.use(authenticate);
 
-router.get('/pending-schools', getPendingSchools);
-router.put('/schools/:schoolId/approve', approveSchool);
-router.put('/schools/:schoolId/reject', rejectSchool);
-router.get('/schools', getAllSchools);
-router.get('/metrics', getPlatformMetrics);
-router.post('/mock-tests', createMockTest);
-router.post('/questions', createQuestion);
+// Platform Admin / School Verification Operations
+router.get('/pending-schools', requireRole('ADMIN', 'SUPER_ADMIN'), getPendingSchools);
+router.put('/schools/:schoolId/approve', requireRole('ADMIN', 'SUPER_ADMIN'), approveSchool);
+router.put('/schools/:schoolId/reject', requireRole('ADMIN', 'SUPER_ADMIN'), rejectSchool);
+router.get('/schools', requireRole('ADMIN', 'SUPER_ADMIN'), getAllSchools);
+router.get('/metrics', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'), getPlatformMetrics);
+
+// Question Bank Operations
+router.get('/question-bank', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'), getQuestionBank);
+router.post('/question-bank', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'), createBankQuestion);
+router.put('/question-bank/:id', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'), updateBankQuestion);
+router.delete('/question-bank/:id', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'), deleteBankQuestion);
+
+// Mock Test Authoring & Generation (Accessible by EXAM_ADMIN, ADMIN, SUPER_ADMIN)
+router.post('/mock-tests', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'), createMockTest);
+router.post('/mock-tests/manual-create', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'), manualCreateMockTest);
+router.post('/mock-tests/:id/generate-key', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN', 'TEACHER'), generateMockTestAccessKey);
+router.post('/questions', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'), createQuestion);
+router.post('/mock-tests/generate', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'), generateMockTestPaper);
 
 export default router;

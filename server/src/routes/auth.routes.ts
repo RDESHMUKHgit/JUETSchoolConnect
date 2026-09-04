@@ -22,6 +22,7 @@ router.post('/submit-school', authenticate, requireRole('PRINCIPAL'), submitScho
 
 router.post('/register-student-init', registerStudentInit);
 router.post('/complete-student-profile', authenticate, requireRole('STUDENT'), completeStudentProfile);
+router.post('/student/complete-profile', authenticate, requireRole('STUDENT'), completeStudentProfile);
 
 router.post('/login', publicLogin);
 router.post('/admin-login', adminLogin);
