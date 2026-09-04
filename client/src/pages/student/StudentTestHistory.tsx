@@ -6,7 +6,8 @@ import { Card } from '../../components/ui/Card.js';
 import { Badge } from '../../components/ui/Badge.js';
 import { Button } from '../../components/ui/Button.js';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner.js';
-import { GraduationCap, Target, FileText, ArrowRight, Award } from 'lucide-react';
+import { ArrowRight, Award, FileText, Target } from 'lucide-react';
+import { getStudentNavItems } from '../../utils/navigation.js';
 
 export const StudentTestHistory: React.FC = () => {
   const navigate = useNavigate();
@@ -30,11 +31,7 @@ export const StudentTestHistory: React.FC = () => {
     loadHistory();
   }, []);
 
-  const navItems = [
-    { label: 'Dashboard', path: '/student', icon: <GraduationCap size={18} /> },
-    { label: 'Attempt Mock Tests', path: '/student/mock-tests', icon: <Target size={18} /> },
-    { label: 'Test History', path: '/student/history', icon: <FileText size={18} /> },
-  ];
+  const navItems = getStudentNavItems(undefined, history.length);
 
   return (
     <PortalSidebarLayout portalTitle="Assessment History" portalRole="STUDENT" navItems={navItems}>

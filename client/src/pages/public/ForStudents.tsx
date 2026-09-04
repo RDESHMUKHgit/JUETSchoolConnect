@@ -17,7 +17,7 @@ export const ForStudents: React.FC = () => {
             Ace Your Class 12 Boards & Competitive Exams
           </h1>
           <p style={{ fontSize: '18px', color: '#475569', maxWidth: '720px', margin: '0 auto' }}>
-            Designed exclusively for Class 12 high school students. Experience real test conditions, pinpoint conceptual gaps, and qualify for Jaypee University scholarships.
+            Designed exclusively for Class 12 high school students. Experience real test conditions, pinpoint conceptual gaps, and qualify for prestigious merit scholarships.
           </p>
         </div>
 

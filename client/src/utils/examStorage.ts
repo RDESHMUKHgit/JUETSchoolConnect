@@ -229,6 +229,32 @@ export const saveCurrentQuestionIndex = (testId: string, index: number): void =>
 };
 
 /**
+ * Add dwell time in seconds to a specific question
+ */
+export const addQuestionTimeSpent = (testId: string, questionId: string, seconds: number): void => {
+  if (seconds <= 0) return;
+  const session = getStoredExamSession(testId);
+  if (!session || !session.answers[questionId]) return;
+
+  session.answers[questionId].timeSpentSeconds = (session.answers[questionId].timeSpentSeconds || 0) + seconds;
+  saveExamSession(session);
+};
+
+/**
+ * Retrieve map of question timings { [question_id]: seconds }
+ */
+export const getQuestionTimings = (testId: string): Record<string, number> => {
+  const session = getStoredExamSession(testId);
+  if (!session) return {};
+
+  const timings: Record<string, number> = {};
+  Object.entries(session.answers).forEach(([qId, state]) => {
+    timings[qId] = state.timeSpentSeconds || 0;
+  });
+  return timings;
+};
+
+/**
  * Wipe session after successful submission
  */
 export const clearExamSession = (testId: string): void => {

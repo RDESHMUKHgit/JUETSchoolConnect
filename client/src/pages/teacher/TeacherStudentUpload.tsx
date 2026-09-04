@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button.js';
 import { Badge } from '../../components/ui/Badge.js';
 import { Modal } from '../../components/ui/Modal.js';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner.js';
+import { getTeacherNavItems } from '../../utils/navigation.js';
 import {
   UploadCloud,
   FileSpreadsheet,
@@ -21,6 +22,7 @@ import {
   GraduationCap,
   Target,
   UserCheck,
+  UserPlus,
 } from 'lucide-react';
 
 export const TeacherStudentUpload: React.FC = () => {
@@ -37,13 +39,7 @@ export const TeacherStudentUpload: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
-  const navItems = [
-    { label: 'Overview', path: '/teacher', icon: <BookOpen size={18} /> },
-    { label: 'Student Directory', path: '/teacher/students', icon: <GraduationCap size={18} /> },
-    { label: 'Upload CSV (Students)', path: '/teacher/students/upload', icon: <UploadCloud size={18} /> },
-    { label: 'Pending Verifications', path: '/teacher/students/verification', icon: <UserCheck size={18} /> },
-    { label: 'Mock Tests (View Only)', path: '/teacher/mock-tests', icon: <Target size={18} /> },
-  ];
+  const navItems = getTeacherNavItems();
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     setParseError(null);
@@ -128,13 +124,23 @@ export const TeacherStudentUpload: React.FC = () => {
   return (
     <PortalSidebarLayout portalTitle={user?.schoolName || 'Faculty Portal'} portalRole="TEACHER" navItems={navItems}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-        <div>
-          <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#0F172A' }}>
-            Class 12 Student Registration via CSV
-          </h1>
-          <p style={{ color: '#475569', fontSize: '14px', marginTop: '4px' }}>
-            Upload a CSV containing <strong>name</strong> and <strong>email</strong> columns to automatically provision accounts for your students.
-          </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+          <div>
+            <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#0F172A' }}>
+              Class 12 Student Registration via CSV
+            </h1>
+            <p style={{ color: '#475569', fontSize: '14px', marginTop: '4px' }}>
+              Upload a CSV containing <strong>name</strong> and <strong>email</strong> columns to automatically provision accounts for your students.
+            </p>
+          </div>
+          <Button
+            variant="gold"
+            size="sm"
+            icon={<UserPlus size={16} />}
+            onClick={() => navigate('/teacher/students?action=add')}
+          >
+            Add Student Manually
+          </Button>
         </div>
 
         {/* Upload Zone */}

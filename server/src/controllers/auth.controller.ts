@@ -101,6 +101,9 @@ export const completePrincipalProfile = async (req: Request, res: Response): Pro
       return;
     }
 
+    const isAlreadyVerified = user.status === 'VERIFIED' || user.status === 'ACTIVE';
+    const targetStatus = isAlreadyVerified ? user.status : 'COMPLETED';
+
     const payload: JwtUserPayload = {
       userId: user.userId,
       authId: user.authId,
@@ -108,8 +111,11 @@ export const completePrincipalProfile = async (req: Request, res: Response): Pro
       role: user.role,
       schoolId: user.schoolId,
       schoolName: user.schoolName,
-      status: 'COMPLETED',
+      status: targetStatus,
       fullName: updated.full_name,
+      phone: updated.phone,
+      designation: updated.designation,
+      profile_photo_url: updated.profile_photo_url,
     };
 
     const token = signToken(payload);
@@ -117,9 +123,11 @@ export const completePrincipalProfile = async (req: Request, res: Response): Pro
 
     res.status(200).json({
       success: true,
-      message: 'Profile details saved. Now please provide your school details.',
+      message: isAlreadyVerified
+        ? 'Profile details updated successfully!'
+        : 'Profile details saved. Now please provide your school details.',
       user: payload,
-      nextStep: '/principal/school-setup',
+      nextStep: isAlreadyVerified ? '/principal' : '/principal/school-setup',
       token,
     });
   } catch (err: any) {
@@ -212,7 +220,7 @@ export const submitSchoolDetails = async (req: Request, res: Response): Promise<
 
     res.status(201).json({
       success: true,
-      message: 'School registration submitted successfully! Your account is now under verification by Jaypee Platform Administration.',
+      message: 'School registration submitted successfully! Your account is now under verification by Central Platform Administration.',
       user: payload,
       nextStep: '/principal/verification',
       token,
@@ -224,11 +232,28 @@ export const submitSchoolDetails = async (req: Request, res: Response): Promise<
 
 export const registerStudentInit = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { full_name, email, password } = req.body;
+    const { full_name, email, password, school_id, teacher_id } = req.body;
 
     if (!full_name || !email || !password) {
       res.status(400).json({ success: false, message: 'Full name, email, and password are required.' });
       return;
+    }
+
+    // Validate school and teacher relation if provided
+    if (school_id && teacher_id) {
+      const { data: teacherRec, error: tErr } = await supabase
+        .from('teachers')
+        .select('teacher_id, school_id, status')
+        .eq('teacher_id', teacher_id)
+        .single();
+
+      if (tErr || !teacherRec || teacherRec.school_id !== school_id || !['ACTIVE', 'VERIFIED'].includes(teacherRec.status)) {
+        res.status(400).json({
+          success: false,
+          message: 'The selected teacher is not a verified faculty member of the selected institution.',
+        });
+        return;
+      }
     }
 
     // 1. Supabase Auth signup
@@ -245,7 +270,7 @@ export const registerStudentInit = async (req: Request, res: Response): Promise<
 
     const authId = authData.user?.id;
 
-    // 2. Insert into public.student with Class 12, status NOT_COMPLETED, school_id null
+    // 2. Insert into public.student with Class 12, status NOT_COMPLETED
     const { data: studentData, error: dbErr } = await supabase
       .from('student')
       .insert([
@@ -255,7 +280,8 @@ export const registerStudentInit = async (req: Request, res: Response): Promise<
           auth_id: authId,
           class: 12,
           status: 'NOT_COMPLETED',
-          school_id: null,
+          school_id: school_id || null,
+          teacher_id: teacher_id || null,
         },
       ])
       .select()
@@ -273,7 +299,7 @@ export const registerStudentInit = async (req: Request, res: Response): Promise<
       role: 'STUDENT',
       status: 'NOT_COMPLETED',
       fullName: studentData.full_name,
-      schoolId: null,
+      schoolId: studentData.school_id,
     };
 
     const token = signToken(payload);
@@ -281,7 +307,7 @@ export const registerStudentInit = async (req: Request, res: Response): Promise<
 
     res.status(201).json({
       success: true,
-      message: 'Student account created. Please select your verified school and complete details.',
+      message: 'Student account created. Please complete details.',
       user: payload,
       nextStep: '/student/profile-setup',
       token,
@@ -299,7 +325,18 @@ export const completeStudentProfile = async (req: Request, res: Response): Promi
       return;
     }
 
-    const { school_id, phone_no, admission_no, apaar, dob, gender, new_password, current_password } = req.body;
+    const {
+      school_id,
+      teacher_id,
+      phone_no,
+      admission_no,
+      apaar,
+      dob,
+      gender,
+      profile_photo_url,
+      new_password,
+      current_password,
+    } = req.body;
 
     // Retrieve existing student record
     const { data: currentStudent, error: fetchErr } = await supabase
@@ -375,6 +412,14 @@ export const completeStudentProfile = async (req: Request, res: Response): Promi
       status: 'PENDING', // Status becomes PENDING for teacher verification!
       updated_at: new Date().toISOString(),
     };
+
+    if (profile_photo_url) {
+      updateData.profile_photo_url = profile_photo_url;
+    }
+
+    if (teacher_id) {
+      updateData.teacher_id = teacher_id;
+    }
 
     if (!currentStudent.school_id && effectiveSchoolId) {
       updateData.school_id = effectiveSchoolId;
@@ -469,6 +514,9 @@ export const publicLogin = async (req: Request, res: Response): Promise<void> =>
         fullName: p.full_name,
         role: 'PRINCIPAL',
         status: p.status,
+        phone: p.phone || null,
+        designation: p.designation || null,
+        profile_photo_url: p.profile_photo_url || null,
       };
       schoolId = p.school_id;
       schoolName = p.school?.name || null;
@@ -489,6 +537,10 @@ export const publicLogin = async (req: Request, res: Response): Promise<void> =>
         fullName: t.full_name,
         role: 'TEACHER',
         status: t.status,
+        phone: t.phone || null,
+        designation: t.designation || null,
+        department: t.department || null,
+        profile_photo_url: t.profile_photo_url || null,
       };
       schoolId = t.school_id;
       schoolName = t.school?.name || null;
@@ -509,6 +561,12 @@ export const publicLogin = async (req: Request, res: Response): Promise<void> =>
         fullName: s.full_name,
         role: 'STUDENT',
         status: s.status,
+        phone: s.phone_no || null,
+        phone_no: s.phone_no || null,
+        admission_no: s.admission_no || null,
+        apaar: s.apaar || null,
+        class: s.class || 12,
+        profile_photo_url: s.profile_photo_url || null,
       };
       schoolId = s.school_id;
       schoolName = s.school?.name || null;
@@ -523,6 +581,14 @@ export const publicLogin = async (req: Request, res: Response): Promise<void> =>
       fullName: userRecord.fullName,
       schoolId,
       schoolName,
+      phone: userRecord.phone || userRecord.phone_no || null,
+      phone_no: userRecord.phone_no || userRecord.phone || null,
+      profile_photo_url: userRecord.profile_photo_url || null,
+      designation: userRecord.designation || null,
+      department: userRecord.department || null,
+      apaar: userRecord.apaar || null,
+      admission_no: userRecord.admission_no || null,
+      class: userRecord.class || null,
     };
 
     const token = signToken(payload);
@@ -643,35 +709,51 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
     } else if (req.user.role === 'PRINCIPAL') {
       const { data } = await supabase
         .from('principal')
-        .select('status, school_id, school:school_id(name)')
+        .select('status, school_id, full_name, email, phone, gender, designation, profile_photo_url, school:school_id(name)')
         .eq('principal_id', req.user.userId)
         .maybeSingle();
       if (data) {
         currentStatus = data.status as any;
         schoolId = data.school_id;
         schoolName = (data.school as any)?.name || schoolName;
+        req.user.fullName = data.full_name || req.user.fullName;
+        req.user.phone = data.phone || null;
+        req.user.designation = data.designation || null;
+        req.user.profile_photo_url = data.profile_photo_url || null;
       }
     } else if (req.user.role === 'TEACHER') {
       const { data } = await supabase
         .from('teachers')
-        .select('status, school_id, school:school_id(name)')
+        .select('status, school_id, full_name, email, phone, designation, department, profile_photo_url, school:school_id(name)')
         .eq('teacher_id', req.user.userId)
         .maybeSingle();
       if (data) {
         currentStatus = data.status as any;
         schoolId = data.school_id;
         schoolName = (data.school as any)?.name || schoolName;
+        req.user.fullName = data.full_name || req.user.fullName;
+        req.user.phone = data.phone || null;
+        req.user.designation = data.designation || null;
+        req.user.department = data.department || null;
+        req.user.profile_photo_url = data.profile_photo_url || null;
       }
     } else if (req.user.role === 'STUDENT') {
       const { data } = await supabase
         .from('student')
-        .select('status, school_id, school:school_id(name)')
+        .select('status, school_id, full_name, email, phone_no, admission_no, apaar, dob, gender, class, profile_photo_url, school:school_id(name)')
         .eq('student_id', req.user.userId)
         .maybeSingle();
       if (data) {
         currentStatus = data.status as any;
         schoolId = data.school_id;
         schoolName = (data.school as any)?.name || schoolName;
+        req.user.fullName = data.full_name || req.user.fullName;
+        req.user.phone = data.phone_no || null;
+        req.user.phone_no = data.phone_no || null;
+        req.user.admission_no = data.admission_no || null;
+        req.user.apaar = data.apaar || null;
+        req.user.class = data.class || 12;
+        req.user.profile_photo_url = data.profile_photo_url || null;
       }
     }
   } catch (e) {

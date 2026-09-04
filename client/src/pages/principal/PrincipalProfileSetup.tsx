@@ -11,7 +11,7 @@ export const PrincipalProfileSetup: React.FC = () => {
   const navigate = useNavigate();
   const { user, completePrincipalProfile } = useAuth();
 
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(user?.phone || '');
   const [gender, setGender] = useState('MALE');
   const [designation, setDesignation] = useState<'P' | 'VP'>('P');
   const [loading, setLoading] = useState(false);
@@ -27,7 +27,11 @@ export const PrincipalProfileSetup: React.FC = () => {
         gender,
         designation,
       });
-      navigate(nextStep);
+      if (user?.status === 'VERIFIED' || user?.status === 'ACTIVE') {
+        navigate('/principal');
+      } else {
+        navigate(nextStep);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to save profile.');
     } finally {

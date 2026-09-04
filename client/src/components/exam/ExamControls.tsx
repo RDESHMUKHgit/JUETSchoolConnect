@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight, Bookmark, RotateCcw } from 'lucide-react';
+import { ChevronRight, Bookmark, RotateCcw, Lock } from 'lucide-react';
 import { Button } from '../ui/Button.js';
 
 interface ExamControlsProps {
@@ -7,7 +7,7 @@ interface ExamControlsProps {
   totalQuestions: number;
   isMarkedForReview: boolean;
   hasSelectedOption: boolean;
-  onPrevious: () => void;
+  onPrevious?: () => void;
   onNext: () => void;
   onClear: () => void;
   onToggleReviewAndNext: () => void;
@@ -18,12 +18,10 @@ export const ExamControls: React.FC<ExamControlsProps> = ({
   totalQuestions,
   isMarkedForReview,
   hasSelectedOption,
-  onPrevious,
   onNext,
   onClear,
   onToggleReviewAndNext,
 }) => {
-  const isFirst = currentIndex === 0;
   const isLast = currentIndex === totalQuestions - 1;
 
   return (
@@ -41,17 +39,12 @@ export const ExamControls: React.FC<ExamControlsProps> = ({
         zIndex: 40,
       }}
     >
-      {/* Left side actions */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <Button
-          variant="secondary"
-          size="sm"
-          icon={<ChevronLeft size={16} />}
-          disabled={isFirst}
-          onClick={onPrevious}
-        >
-          Previous
-        </Button>
+      {/* Left side: Forward Progression Indicator & Clear Response */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#64748B', fontWeight: 600 }}>
+          <Lock size={14} style={{ color: '#94A3B8' }} />
+          <span>Forward Progression Only</span>
+        </div>
 
         {hasSelectedOption && (
           <Button
@@ -89,7 +82,7 @@ export const ExamControls: React.FC<ExamControlsProps> = ({
           onClick={onNext}
           style={{ padding: '8px 20px', fontWeight: 700 }}
         >
-          {isLast ? 'Review Summary' : 'Save & Next'}
+          {isLast ? 'Review & Submit' : 'Save & Next'}
         </Button>
       </div>
     </footer>

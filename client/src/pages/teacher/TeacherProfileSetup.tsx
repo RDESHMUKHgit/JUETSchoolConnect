@@ -12,9 +12,9 @@ export const TeacherProfileSetup: React.FC = () => {
   const { user, completeTeacherProfile } = useAuth();
 
   // Teacher profile setup state (Full Name is pre-set by the Principal during account provisioning)
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(user?.phone || '');
   const [empId, setEmpId] = useState('');
-  const [department, setDepartment] = useState('Science');
+  const [department, setDepartment] = useState(user?.department || 'Science');
   const [specialization, setSpecialization] = useState('Physics');
   const [qualification, setQualification] = useState('M.Sc., B.Ed.');
   const [gender, setGender] = useState('MALE');
@@ -36,7 +36,11 @@ export const TeacherProfileSetup: React.FC = () => {
         qualification,
         gender,
       });
-      navigate(nextStep);
+      if (user?.status === 'VERIFIED' || user?.status === 'ACTIVE') {
+        navigate('/teacher');
+      } else {
+        navigate(nextStep);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to update profile.');
     } finally {
@@ -82,7 +86,6 @@ export const TeacherProfileSetup: React.FC = () => {
         )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <Input
               label="Contact Phone"

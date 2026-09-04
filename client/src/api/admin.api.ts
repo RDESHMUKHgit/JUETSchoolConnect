@@ -31,7 +31,16 @@ export const adminApi = {
     }),
 
   // Question Bank operations
-  getQuestionBank: () => apiRequest('/admin/question-bank'),
+  getQuestionBank: (params?: { page?: number; limit?: number; subject?: string; search?: string; usage?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', String(params.page));
+    if (params?.limit) query.append('limit', String(params.limit));
+    if (params?.subject) query.append('subject', params.subject);
+    if (params?.search) query.append('search', params.search);
+    if (params?.usage) query.append('usage', params.usage);
+    const qs = query.toString();
+    return apiRequest(`/admin/question-bank${qs ? `?${qs}` : ''}`);
+  },
   createBankQuestion: (data: any) =>
     apiRequest('/admin/question-bank', {
       method: 'POST',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { testApi } from '../../api/test.api.js';
 import { PortalSidebarLayout } from '../../layouts/PortalSidebarLayout.js';
@@ -7,6 +7,7 @@ import { Badge } from '../../components/ui/Badge.js';
 import { Button } from '../../components/ui/Button.js';
 import { Modal } from '../../components/ui/Modal.js';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner.js';
+import { getStudentNavItems } from '../../utils/navigation.js';
 import {
   Target,
   Clock,
@@ -17,12 +18,17 @@ import {
   CheckSquare,
   Square,
   ArrowRight,
+  CheckCircle2,
+  Lock,
+  Search,
 } from 'lucide-react';
 
 export const MockTestCatalog: React.FC = () => {
   const navigate = useNavigate();
   const [mockTests, setMockTests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterTab, setFilterTab] = useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ALL');
 
   // Pre-Exam Access Key & Rules Modal state
   const [selectedTest, setSelectedTest] = useState<any | null>(null);
@@ -87,15 +93,31 @@ export const MockTestCatalog: React.FC = () => {
     }
   };
 
-  const navItems = [
-    { label: 'Dashboard', path: '/student', icon: <GraduationCap size={18} /> },
-    { label: 'Attempt Mock Tests', path: '/student/mock-tests', icon: <Target size={18} /> },
-    { label: 'Test History', path: '/student/history', icon: <FileText size={18} /> },
-  ];
+  // Filtered mock tests
+  const filteredTests = useMemo(() => {
+    return mockTests.filter((t) => {
+      const expiresAt = t.access_key_expires_at || t.key_expires_at;
+      const isKeyActive = Boolean(t.access_key && expiresAt && new Date(expiresAt) > new Date());
+      const isCompleted = Boolean(t.has_attempted);
+
+      if (filterTab === 'ACTIVE' && (!isKeyActive || isCompleted)) return false;
+      if (filterTab === 'COMPLETED' && !isCompleted) return false;
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchTitle = t.title?.toLowerCase().includes(q);
+        const matchDesc = t.description?.toLowerCase().includes(q);
+        if (!matchTitle && !matchDesc) return false;
+      }
+      return true;
+    });
+  }, [mockTests, filterTab, searchQuery]);
+
+  const navItems = getStudentNavItems(mockTests.length);
 
   return (
     <PortalSidebarLayout portalTitle="Class 12 Mock Assessments" portalRole="STUDENT" navItems={navItems}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         <div>
           <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#0F172A' }}>
             Class 12 Standardized Mock Tests
@@ -105,85 +127,177 @@ export const MockTestCatalog: React.FC = () => {
           </p>
         </div>
 
+        {/* Filter & Search Bar */}
+        <Card variant="glass" padding="md">
+          <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ flex: '1 1 280px', position: 'relative' }}>
+              <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
+              <input
+                type="text"
+                placeholder="Search mock assessments..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '9px 14px 9px 38px',
+                  borderRadius: '8px',
+                  border: '1px solid #CBD5E1',
+                  fontSize: '13px',
+                  backgroundColor: '#FFFFFF',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {(['ALL', 'ACTIVE', 'COMPLETED'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setFilterTab(tab)}
+                  style={{
+                    padding: '7px 14px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    backgroundColor: filterTab === tab ? '#0F172A' : '#F1F5F9',
+                    color: filterTab === tab ? '#FFFFFF' : '#475569',
+                    border: 'none',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {tab === 'ALL' ? 'All Mock Tests' : tab === 'ACTIVE' ? 'Active Window' : 'Completed'}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Card>
+
         {loading ? (
           <LoadingSpinner message="Loading available test schedules..." />
-        ) : mockTests.length === 0 ? (
+        ) : filteredTests.length === 0 ? (
           <Card variant="glass" padding="lg" style={{ textAlign: 'center' }}>
             <Target size={40} style={{ color: '#64748B', margin: '0 auto 12px' }} />
-            <h3 style={{ fontSize: '18px', color: '#0F172A', marginBottom: '6px' }}>No Active Tests Scheduled</h3>
+            <h3 style={{ fontSize: '18px', color: '#0F172A', marginBottom: '6px' }}>No Tests Found</h3>
             <p style={{ color: '#475569', fontSize: '14px' }}>
-              Jaypee Platform Administration is currently scheduling the next batch of All-India Class 12 mock assessments.
+              No mock tests match your filter criteria or search query.
             </p>
           </Card>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
-            {mockTests.map((t) => (
-              <Card
-                key={t.mock_test_id}
-                variant="glass"
-                padding="lg"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  borderTop: '3px solid #C59B27',
-                }}
-              >
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                    <Badge variant="info">{t.subject?.name || 'Science'}</Badge>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#475569' }}>
-                      <Clock size={15} style={{ color: '#9A751A' }} />
-                      <span>{t.max_time_in_mins} Mins</span>
-                    </div>
-                  </div>
+            {filteredTests.map((t) => {
+              const expiresAt = t.access_key_expires_at || t.key_expires_at;
+              const isCompleted = Boolean(t.has_attempted);
+              const isKeyActive = Boolean(t.access_key && expiresAt && new Date(expiresAt) > new Date());
+              const isKeyExpired = Boolean(t.access_key && expiresAt && new Date(expiresAt) <= new Date());
 
-                  <h3 style={{ fontSize: '19px', fontWeight: 700, color: '#0F172A', marginBottom: '8px' }}>
-                    {t.title}
-                  </h3>
-
-                  <p style={{ fontSize: '13px', color: '#475569', lineHeight: 1.6, marginBottom: '20px' }}>
-                    {t.description || 'Standardized test simulation strictly conforming to Class 12 board and entrance blueprints.'}
-                  </p>
-
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
-                      gap: '10px',
-                      background: '#F8FAFC',
-                      border: '1px solid #E2E8F0',
-                      padding: '12px',
-                      borderRadius: '8px',
-                      marginBottom: '20px',
-                    }}
-                  >
-                    <div style={{ fontSize: '12px', color: '#475569' }}>
-                      Questions: <strong style={{ color: '#0F172A' }}>{t.total_questions}</strong>
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#475569' }}>
-                      Total Marks: <strong style={{ color: '#0F172A' }}>{t.max_marks}</strong>
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#475569' }}>
-                      Passing: <strong style={{ color: '#059669' }}>{t.passing_marks || '40%'}</strong>
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#475569' }}>
-                      Negative: <strong style={{ color: t.negative_marking ? '#DC2626' : '#059669' }}>{t.negative_marking ? 'Yes (-1)' : 'None'}</strong>
-                    </div>
-                  </div>
-                </div>
-
-                <Button
-                  variant="gold"
-                  size="md"
-                  icon={<Target size={16} />}
-                  onClick={() => handleOpenPreExamModal(t)}
-                  style={{ width: '100%' }}
+              return (
+                <Card
+                  key={t.mock_test_id}
+                  variant="glass"
+                  padding="lg"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    borderTop: isCompleted ? '3px solid #10B981' : isKeyActive ? '3px solid #C59B27' : '3px solid #CBD5E1',
+                  }}
                 >
-                  Start Test Attempt
-                </Button>
-              </Card>
-            ))}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                      <Badge variant="info">{t.subject?.name || 'Science'}</Badge>
+                      
+                      {/* 4 Card Status Badges */}
+                      {isCompleted ? (
+                        <Badge variant="success">Completed</Badge>
+                      ) : isKeyActive ? (
+                        <Badge variant="gold">Active Window</Badge>
+                      ) : isKeyExpired ? (
+                        <Badge variant="danger">Access Expired</Badge>
+                      ) : (
+                        <Badge variant="default">Awaiting Key</Badge>
+                      )}
+                    </div>
+
+                    <h3 style={{ fontSize: '19px', fontWeight: 700, color: '#0F172A', marginBottom: '8px' }}>
+                      {t.title}
+                    </h3>
+
+                    <p style={{ fontSize: '13px', color: '#475569', lineHeight: 1.6, marginBottom: '20px' }}>
+                      {t.description || 'Standardized test simulation strictly conforming to Class 12 board and entrance blueprints.'}
+                    </p>
+
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '10px',
+                        background: '#F8FAFC',
+                        border: '1px solid #E2E8F0',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        marginBottom: '20px',
+                      }}
+                    >
+                      <div style={{ fontSize: '12px', color: '#475569' }}>
+                        Questions: <strong style={{ color: '#0F172A' }}>{t.total_questions}</strong>
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#475569' }}>
+                        Duration: <strong style={{ color: '#0F172A' }}>{t.max_time_in_mins} Mins</strong>
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#475569' }}>
+                        Total Marks: <strong style={{ color: '#0F172A' }}>{t.max_marks}</strong>
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#475569' }}>
+                        Marking: <strong style={{ color: '#0F172A' }}>+4 / -1</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 4 Card Action Button States */}
+                  {isCompleted ? (
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      disabled
+                      icon={<CheckCircle2 size={16} style={{ color: '#10B981' }} />}
+                      style={{ width: '100%', opacity: 0.75, cursor: 'not-allowed' }}
+                    >
+                      Attempt Completed (Single Attempt Enforced)
+                    </Button>
+                  ) : isKeyActive ? (
+                    <Button
+                      variant="gold"
+                      size="md"
+                      icon={<Target size={16} />}
+                      onClick={() => handleOpenPreExamModal(t)}
+                      style={{ width: '100%' }}
+                    >
+                      Start Test Attempt
+                    </Button>
+                  ) : isKeyExpired ? (
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      disabled
+                      icon={<Lock size={15} style={{ color: '#EF4444' }} />}
+                      style={{ width: '100%', opacity: 0.7, cursor: 'not-allowed' }}
+                    >
+                      Access Window Expired
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      disabled
+                      icon={<KeyRound size={15} style={{ color: '#94A3B8' }} />}
+                      style={{ width: '100%', opacity: 0.7, cursor: 'not-allowed' }}
+                    >
+                      Awaiting Access Key from Teacher
+                    </Button>
+                  )}
+                </Card>
+              );
+            })}
           </div>
         )}
 
@@ -226,10 +340,11 @@ export const MockTestCatalog: React.FC = () => {
                   <span>Standardized Examination Protocol</span>
                 </div>
                 <ul style={{ margin: 0, paddingLeft: '20px', color: '#78350F', fontSize: '12px', lineHeight: 1.6 }}>
+                  <li>Strict <strong>single-attempt</strong> policy enforced. Retakes are prohibited.</li>
+                  <li>Questions proceed in <strong>forward-only progression</strong> (previous questions cannot be revisited).</li>
                   <li>Full-screen mode is required throughout the test duration.</li>
-                  <li>Tab switching, window resizing, or developer shortcuts are recorded as violations.</li>
-                  <li>The test timer will run continuously. Upon reaching <strong>00:00:00</strong>, your exam will <strong>automatically submit</strong>.</li>
-                  <li>Ensure an uninterrupted internet connection before launching.</li>
+                  <li>Tab switching, window resizing, or shortcuts trigger security alerts.</li>
+                  <li>The test timer runs continuously. Upon reaching <strong>00:00:00</strong>, the exam submits automatically.</li>
                 </ul>
               </div>
 
@@ -248,69 +363,57 @@ export const MockTestCatalog: React.FC = () => {
                       setAccessKeyInput(val);
                       setKeyError(null);
                     }}
-                    placeholder="Enter 6-digit key (e.g. 948123)"
+                    placeholder="e.g. 849201"
                     style={{
                       width: '100%',
-                      height: '46px',
-                      borderRadius: '8px',
-                      border: keyError ? '1px solid #DC2626' : '1px solid #CBD5E1',
-                      padding: '0 16px 0 44px',
+                      padding: '12px 14px 12px 42px',
                       fontSize: '18px',
-                      fontWeight: 700,
-                      letterSpacing: '0.25em',
                       fontFamily: 'monospace',
-                      boxSizing: 'border-box',
-                      outline: 'none',
+                      letterSpacing: '4px',
+                      fontWeight: 700,
+                      borderRadius: '8px',
+                      border: keyError ? '1px solid #EF4444' : '1px solid #CBD5E1',
+                      backgroundColor: '#FFFFFF',
                     }}
                   />
-                  <KeyRound
-                    size={20}
-                    style={{
-                      position: 'absolute',
-                      left: '14px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: '#94A3B8',
-                    }}
-                  />
+                  <KeyRound size={20} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
                 </div>
-                <span style={{ fontSize: '11px', color: '#64748B', marginTop: '4px', display: 'block' }}>
-                  Ask your invigilating teacher for the 60-minute session access key.
-                </span>
+                {keyError && (
+                  <p style={{ color: '#EF4444', fontSize: '12px', marginTop: '6px', fontWeight: 600 }}>
+                    {keyError}
+                  </p>
+                )}
               </div>
 
-              {/* Terms Checkbox */}
-              <div
-                onClick={() => setRulesAccepted(!rulesAccepted)}
+              {/* Anti-cheat Agreement Checkbox */}
+              <label
                 style={{
                   display: 'flex',
                   alignItems: 'flex-start',
                   gap: '10px',
+                  fontSize: '13px',
+                  color: '#334155',
                   cursor: 'pointer',
-                  padding: '8px',
-                  borderRadius: '6px',
-                  background: rulesAccepted ? '#F0FDF4' : 'transparent',
+                  backgroundColor: '#F8FAFC',
+                  padding: '12px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid #E2E8F0',
                 }}
               >
-                {rulesAccepted ? (
-                  <CheckSquare size={18} style={{ color: '#16A34A', flexShrink: 0, marginTop: '2px' }} />
-                ) : (
-                  <Square size={18} style={{ color: '#94A3B8', flexShrink: 0, marginTop: '2px' }} />
-                )}
-                <span style={{ fontSize: '12px', color: '#334155', lineHeight: 1.5 }}>
-                  I have read and understood all candidate instructions. I confirm that I will not use unauthorized materials or switch tabs during this assessment.
+                <input
+                  type="checkbox"
+                  checked={rulesAccepted}
+                  onChange={(e) => setRulesAccepted(e.target.checked)}
+                  style={{ marginTop: '2px', accentColor: '#0F172A', cursor: 'pointer' }}
+                />
+                <span>
+                  I confirm that I will not switch tabs, use external aids, or violate examination integrity protocols during this assessment.
                 </span>
-              </div>
-
-              {keyError && (
-                <div style={{ color: '#DC2626', fontSize: '12px', fontWeight: 600 }}>
-                  {keyError}
-                </div>
-              )}
+              </label>
 
               {/* Action Buttons */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
-                <Button variant="secondary" onClick={() => setSelectedTest(null)} disabled={verifyingKey}>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                <Button variant="secondary" onClick={() => setSelectedTest(null)}>
                   Cancel
                 </Button>
                 <Button
@@ -320,7 +423,7 @@ export const MockTestCatalog: React.FC = () => {
                   disabled={!rulesAccepted || accessKeyInput.trim().length !== 6}
                   onClick={handleVerifyAndStart}
                 >
-                  Verify Key & Start Exam
+                  Verify Key & Commence
                 </Button>
               </div>
             </div>

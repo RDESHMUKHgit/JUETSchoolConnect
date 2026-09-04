@@ -23,15 +23,28 @@ import {
 export const ExamAdminPortal: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'question-bank' | 'published-tests'>('question-bank');
 
-  // Question Bank Data
+  // Question Bank Data & Server Pagination
   const [bankQuestions, setBankQuestions] = useState<any[]>([]);
+  const [totalQuestionsCount, setTotalQuestionsCount] = useState<number>(0);
   const [bankLoading, setBankLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
 
   // Filters & Selection
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [subjectFilter, setSubjectFilter] = useState<'ALL' | 'Mathematics' | 'Physics' | 'Chemistry'>('ALL');
   const [usageFilter, setUsageFilter] = useState<'ALL' | 'UNUSED' | 'USED'>('ALL');
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<string[]>([]);
+
+  // Debounce search input by 300ms
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
   // Modals & Forms
   const [showQuestionForm, setShowQuestionForm] = useState(false);
@@ -56,9 +69,16 @@ export const ExamAdminPortal: React.FC = () => {
   const loadBankQuestions = async () => {
     try {
       setBankLoading(true);
-      const res = await adminApi.getQuestionBank();
+      const res = await adminApi.getQuestionBank({
+        page,
+        limit,
+        search: debouncedSearch.trim() || undefined,
+        subject: subjectFilter !== 'ALL' ? subjectFilter : undefined,
+        usage: usageFilter !== 'ALL' ? usageFilter : undefined,
+      });
       if (res.success) {
         setBankQuestions(res.questions || []);
+        setTotalQuestionsCount(res.total !== undefined ? res.total : (res.questions?.length || 0));
       }
     } catch (err: any) {
       console.error('Failed to load question bank:', err);
@@ -83,24 +103,11 @@ export const ExamAdminPortal: React.FC = () => {
 
   useEffect(() => {
     loadBankQuestions();
+  }, [page, limit, debouncedSearch, subjectFilter, usageFilter]);
+
+  useEffect(() => {
     loadTests();
   }, []);
-
-  // Filtered Questions
-  const filteredQuestions = useMemo(() => {
-    return bankQuestions.filter((q) => {
-      if (subjectFilter !== 'ALL' && q.subject_name !== subjectFilter) return false;
-      if (usageFilter === 'UNUSED' && q.is_used) return false;
-      if (usageFilter === 'USED' && !q.is_used) return false;
-      if (searchQuery.trim()) {
-        const needle = searchQuery.toLowerCase();
-        const textMatch = q.question_text?.toLowerCase().includes(needle);
-        const subMatch = q.subject_name?.toLowerCase().includes(needle);
-        if (!textMatch && !subMatch) return false;
-      }
-      return true;
-    });
-  }, [bankQuestions, subjectFilter, usageFilter, searchQuery]);
 
   // Selected Questions List
   const selectedQuestionsList = useMemo(() => {
@@ -114,9 +121,9 @@ export const ExamAdminPortal: React.FC = () => {
   };
 
   const handleSelectAllUnused = () => {
-    const unusedIds = filteredQuestions
-      .filter((q) => !q.is_used)
-      .map((q) => q.bank_question_id);
+    const unusedIds = bankQuestions
+      .filter((q: any) => !q.is_used)
+      .map((q: any) => q.bank_question_id);
     setSelectedQuestionIds((prev) => Array.from(new Set([...prev, ...unusedIds])));
   };
 
@@ -184,11 +191,10 @@ export const ExamAdminPortal: React.FC = () => {
 
   const navItems = [
     { label: 'Question Bank Workspace', path: '/admin/exam', icon: <Layers size={18} /> },
-    { label: 'Platform Administration', path: '/admin', icon: <BookOpen size={18} /> },
   ];
 
   return (
-    <PortalSidebarLayout portalTitle="Jaypee Examination Authority" portalRole="ADMIN" navItems={navItems}>
+    <PortalSidebarLayout portalTitle="Central Examination Authority" portalRole="ADMIN" navItems={navItems}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         {/* Top Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
@@ -254,7 +260,7 @@ export const ExamAdminPortal: React.FC = () => {
               cursor: 'pointer',
             }}
           >
-            Question Bank ({bankQuestions.length})
+            Question Bank ({totalQuestionsCount})
           </button>
           <button
             onClick={() => setActiveTab('published-tests')}
@@ -276,15 +282,29 @@ export const ExamAdminPortal: React.FC = () => {
         {/* TAB 1: QUESTION BANK WORKSPACE */}
         {activeTab === 'question-bank' && (
           <QuestionBankListTab
-            filteredQuestions={filteredQuestions}
+            filteredQuestions={bankQuestions}
             bankLoading={bankLoading}
             selectedQuestionIds={selectedQuestionIds}
             searchQuery={searchQuery}
             subjectFilter={subjectFilter}
             usageFilter={usageFilter}
+            page={page}
+            limit={limit}
+            totalCount={totalQuestionsCount}
+            onPageChange={setPage}
+            onLimitChange={(lim) => {
+              setLimit(lim);
+              setPage(1);
+            }}
             onSearchChange={setSearchQuery}
-            onSubjectFilterChange={setSubjectFilter}
-            onUsageFilterChange={setUsageFilter}
+            onSubjectFilterChange={(sub) => {
+              setSubjectFilter(sub);
+              setPage(1);
+            }}
+            onUsageFilterChange={(usage) => {
+              setUsageFilter(usage);
+              setPage(1);
+            }}
             onSelectAllUnused={handleSelectAllUnused}
             onClearSelection={handleClearSelection}
             onToggleSelectQuestion={handleToggleSelectQuestion}

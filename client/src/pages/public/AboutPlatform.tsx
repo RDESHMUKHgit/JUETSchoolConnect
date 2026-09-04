@@ -14,10 +14,10 @@ export const AboutPlatform: React.FC = () => {
         <div style={{ textAlign: 'center', marginBottom: '48px' }}>
           <Badge variant="gold" size="sm">PLATFORM OVERVIEW</Badge>
           <h1 style={{ fontSize: '38px', fontWeight: 800, marginTop: '12px', marginBottom: '16px', color: '#0F172A' }}>
-            About Jaypee School Connect
+            About School Connect
           </h1>
           <p style={{ fontSize: '18px', color: '#475569', lineHeight: 1.6 }}>
-            A state-of-the-art School–Student Intelligence Platform designed to elevate Class 12 academic performance across India through data-driven assessments and direct Jaypee University mentorship.
+            A state-of-the-art School–Student Intelligence Platform designed to elevate Class 12 academic performance across India through data-driven assessments and direct merit scholarship mentorship.
           </p>
         </div>
 
@@ -30,7 +30,7 @@ export const AboutPlatform: React.FC = () => {
               Class 12 is the definitive academic milestone in an Indian student's secondary education, determining undergraduate admissions, competitive exam rankings (JEE, CUET), and scholarship qualifications.
             </p>
             <p style={{ fontSize: '15px', color: '#334155', lineHeight: 1.8 }}>
-              Jaypee School Connect replaces generic test paper distribution with an end-to-end intelligence ecosystem. We connect high school leadership, classroom teachers, and students to standardized tests, question-level timing telemetry, and actionable analytics.
+              School Connect replaces generic test paper distribution with an end-to-end intelligence ecosystem. We connect high school leadership, classroom teachers, and students to standardized tests, question-level timing telemetry, and actionable analytics.
             </p>
           </Card>
 
@@ -67,7 +67,7 @@ export const AboutPlatform: React.FC = () => {
                 Direct Merit Scholarships
               </h3>
               <p style={{ fontSize: '14px', color: '#475569', lineHeight: 1.6 }}>
-                Top performing Class 12 candidates automatically qualify for Jaypee University scholarship slabs and personalized counseling.
+                Top performing Class 12 candidates automatically qualify for merit scholarship slabs and personalized counseling.
               </p>
             </Card>
           </div>
@@ -77,7 +77,7 @@ export const AboutPlatform: React.FC = () => {
               Bring Your Institution on Board
             </h3>
             <p style={{ fontSize: '15px', color: '#475569', marginBottom: '24px', maxWidth: '600px', margin: '0 auto 24px' }}>
-              Join CBSE & ICSE schools utilizing Jaypee School Connect to benchmark student potential.
+              Join CBSE & ICSE schools utilizing School Connect to benchmark student potential.
             </p>
             <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
               <Button variant="gold" size="lg" icon={<School size={18} />} onClick={() => navigate('/register-school')}>

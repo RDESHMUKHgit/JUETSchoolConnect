@@ -5,6 +5,7 @@ import { Input } from '../ui/Input.js';
 import { MathRenderer } from '../common/MathRenderer.js';
 import { adminApi } from '../../api/admin.api.js';
 import { Plus, Trash2, CheckCircle2, AlertCircle, Eye, HelpCircle } from 'lucide-react';
+import { ImageUpload } from '../ui/ImageUpload.js';
 
 interface QuestionFormModalProps {
   isOpen: boolean;
@@ -260,16 +261,15 @@ export const QuestionFormModal: React.FC<QuestionFormModalProps> = ({
           )}
         </div>
 
-        {/* Diagram Image URL */}
+        {/* Diagram Image Upload (Max 300 KB) */}
         <div>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-            Question Diagram / Image URL (Optional)
-          </label>
-          <Input
-            type="url"
-            placeholder="https://example.com/circuit-diagram.png"
+          <ImageUpload
+            label="Question Diagram / Image (Optional, Max 300 KB)"
+            bucket="question-images"
             value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
+            onChange={(url) => setImageUrl(url)}
+            aspectRatio="wide"
+            helperText="Maximum size 300 KB. Strictly validated and securely stored."
           />
         </div>
 

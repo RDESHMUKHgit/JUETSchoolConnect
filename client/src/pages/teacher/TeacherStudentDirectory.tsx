@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.js';
 import { teacherApi } from '../../api/teacher.api.js';
 import { PortalSidebarLayout } from '../../layouts/PortalSidebarLayout.js';
@@ -25,16 +26,43 @@ import {
   IdCard,
   Ban,
   RotateCcw,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 
 export const TeacherStudentDirectory: React.FC = () => {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Search & Filter
+  // Search, Filter & View Mode
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'SUSPENDED' | 'PENDING' | 'NOT_COMPLETED'>('ALL');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Compute status counts for accurate badges
+  const counts = useMemo(() => {
+    let active = 0;
+    let suspended = 0;
+    let pending = 0;
+    let notCompleted = 0;
+
+    students.forEach((st) => {
+      if (st.status === 'ACTIVE' || st.status === 'VERIFIED') active++;
+      else if (st.status === 'SUSPENDED') suspended++;
+      else if (st.status === 'PENDING') pending++;
+      else notCompleted++;
+    });
+
+    return {
+      ALL: students.length,
+      ACTIVE: active,
+      SUSPENDED: suspended,
+      PENDING: pending,
+      NOT_COMPLETED: notCompleted,
+    };
+  }, [students]);
 
   // Academic Diagnostic modal
   const [diagnosticStudent, setDiagnosticStudent] = useState<any | null>(null);
@@ -76,7 +104,10 @@ export const TeacherStudentDirectory: React.FC = () => {
 
   useEffect(() => {
     loadStudents();
-  }, []);
+    if (searchParams.get('action') === 'add') {
+      setShowAddModal(true);
+    }
+  }, [searchParams]);
 
   const handleOpenDiagnostic = async (st: any) => {
     setDiagnosticStudent(st);
@@ -240,31 +271,82 @@ export const TeacherStudentDirectory: React.FC = () => {
               />
             </div>
 
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {(['ALL', 'ACTIVE', 'SUSPENDED', 'PENDING', 'NOT_COMPLETED'] as const).map((filter) => (
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {(['ALL', 'ACTIVE', 'PENDING', 'SUSPENDED', 'NOT_COMPLETED'] as const).map((filter) => {
+                const labelMap: Record<string, string> = {
+                  ALL: `All (${counts.ALL})`,
+                  ACTIVE: `Active (${counts.ACTIVE})`,
+                  PENDING: `Pending (${counts.PENDING})`,
+                  SUSPENDED: `Suspended (${counts.SUSPENDED})`,
+                  NOT_COMPLETED: `Setup Incomplete (${counts.NOT_COMPLETED})`,
+                };
+                return (
+                  <button
+                    key={filter}
+                    onClick={() => setStatusFilter(filter)}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      backgroundColor: statusFilter === filter ? '#0F172A' : '#F1F5F9',
+                      color: statusFilter === filter ? '#FFFFFF' : '#475569',
+                      border: 'none',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {labelMap[filter]}
+                  </button>
+                );
+              })}
+
+              {/* Grid / List View Toggle */}
+              <div style={{ display: 'flex', borderRadius: '6px', border: '1px solid #CBD5E1', overflow: 'hidden', marginLeft: 'auto' }}>
                 <button
-                  key={filter}
-                  onClick={() => setStatusFilter(filter)}
+                  type="button"
+                  onClick={() => setViewMode('grid')}
+                  title="Grid View"
                   style={{
-                    padding: '6px 12px',
-                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '6px 10px',
                     fontSize: '12px',
                     fontWeight: 600,
                     cursor: 'pointer',
-                    backgroundColor: statusFilter === filter ? '#0F172A' : '#F1F5F9',
-                    color: statusFilter === filter ? '#FFFFFF' : '#475569',
+                    backgroundColor: viewMode === 'grid' ? '#0F172A' : '#FFFFFF',
+                    color: viewMode === 'grid' ? '#FFFFFF' : '#64748B',
                     border: 'none',
-                    transition: 'all 0.15s ease',
                   }}
                 >
-                  {filter === 'ALL' ? `All (${students.length})` : filter.replace('_', ' ')}
+                  <LayoutGrid size={14} /> Grid
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => setViewMode('list')}
+                  title="List View"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '6px 10px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    backgroundColor: viewMode === 'list' ? '#0F172A' : '#FFFFFF',
+                    color: viewMode === 'list' ? '#FFFFFF' : '#64748B',
+                    border: 'none',
+                  }}
+                >
+                  <List size={14} /> List
+                </button>
+              </div>
             </div>
           </div>
         </Card>
 
-        {/* Students Cards Grid */}
+        {/* Students Display (Grid or Compact List) */}
         {loading ? (
           <LoadingSpinner message="Querying student records..." />
         ) : filteredStudents.length === 0 ? (
@@ -275,7 +357,7 @@ export const TeacherStudentDirectory: React.FC = () => {
               {searchQuery ? 'Try clearing your search terms or filters.' : 'Use "+ Add Student Manually" or the CSV Upload tab to enroll students.'}
             </p>
           </Card>
-        ) : (
+        ) : viewMode === 'grid' ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
             {filteredStudents.map((st) => (
               <Card key={st.student_id} variant="glass" padding="md" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
@@ -330,6 +412,88 @@ export const TeacherStudentDirectory: React.FC = () => {
               </Card>
             ))}
           </div>
+        ) : (
+          /* Compact Table List View */
+          <Card variant="glass" padding="none" style={{ overflowX: 'auto', backgroundColor: '#FFFFFF' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#475569', fontWeight: 700 }}>
+                  <th style={{ padding: '12px 16px' }}>Student Candidate</th>
+                  <th style={{ padding: '12px 16px' }}>Admission / APAAR</th>
+                  <th style={{ padding: '12px 16px' }}>Email & Phone</th>
+                  <th style={{ padding: '12px 16px' }}>Status</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredStudents.map((st) => (
+                  <tr key={st.student_id} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background-color 0.15s ease' }}>
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {st.profile_photo_url ? (
+                          <img
+                            src={st.profile_photo_url}
+                            alt={st.full_name}
+                            style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#E0F2FE', color: '#0369A1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '12px' }}>
+                            {(st.full_name || 'S').charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div>
+                          <strong style={{ color: '#0F172A', display: 'block' }}>{st.full_name}</strong>
+                          <span style={{ fontSize: '11px', color: '#64748B' }}>Class 12</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ padding: '12px 16px', color: '#334155' }}>
+                      <div>{st.admission_no || '—'}</div>
+                      {st.apaar && <div style={{ fontSize: '11px', color: '#64748B' }}>APAAR: {st.apaar}</div>}
+                    </td>
+                    <td style={{ padding: '12px 16px', color: '#475569' }}>
+                      <div>{st.email}</div>
+                      {st.phone_no && <div style={{ fontSize: '11px', color: '#64748B' }}>{st.phone_no}</div>}
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      {getStatusBadge(st.status)}
+                    </td>
+                    <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                      <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          style={{ padding: '4px 8px', fontSize: '11px' }}
+                          icon={<Info size={13} />}
+                          onClick={() => setProfileStudent(st)}
+                        >
+                          Profile
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          style={{ padding: '4px 8px', fontSize: '11px' }}
+                          icon={<BarChart2 size={13} />}
+                          onClick={() => handleOpenDiagnostic(st)}
+                        >
+                          Diagnostic
+                        </Button>
+                        <Button
+                          variant={st.status === 'SUSPENDED' ? 'secondary' : 'danger'}
+                          size="sm"
+                          style={{ padding: '4px 8px', fontSize: '11px' }}
+                          icon={st.status === 'SUSPENDED' ? <RotateCcw size={13} /> : <Ban size={13} />}
+                          onClick={() => handleToggleStatus(st)}
+                        >
+                          {st.status === 'SUSPENDED' ? 'Reactivate' : 'Suspend'}
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
         )}
 
         {/* 1. Modal: Add Student Manually */}

@@ -87,7 +87,7 @@ export const PortalSidebarLayout: React.FC<PortalSidebarLayoutProps> = ({
           </div>
           <div>
             <div style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
-              JAYPEE CONNECT
+              SCHOOL CONNECT
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
               <Badge variant={getRoleBadgeVariant() as any} size="sm">

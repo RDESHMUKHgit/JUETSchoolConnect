@@ -26,7 +26,7 @@ export const ForSchools: React.FC = () => {
             <School size={28} style={{ color: '#9A751A', marginBottom: '14px' }} />
             <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', marginBottom: '8px' }}>Institutional Profile</h3>
             <p style={{ fontSize: '14px', color: '#475569', lineHeight: 1.6 }}>
-              Official recognition for your school on the Jaypee University portal. Showcase board affiliations (CBSE, ICSE) and manage campus credentials.
+              Official recognition for your school on the School Connect network. Showcase board affiliations (CBSE, ICSE) and manage campus credentials.
             </p>
           </Card>
 

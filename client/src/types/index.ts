@@ -19,6 +19,18 @@ export interface User {
   status: UserStatus;
   schoolId?: string | null;
   schoolName?: string | null;
+  phone?: string | null;
+  phone_no?: string | null;
+  profile_photo_url?: string | null;
+  designation?: string | null;
+  department?: string | null;
+  teachers_emp_id?: string | null;
+  specialization?: string | null;
+  qualification?: string | null;
+  gender?: string | null;
+  apaar?: string | null;
+  admission_no?: string | null;
+  class?: number | null;
 }
 
 export interface School {

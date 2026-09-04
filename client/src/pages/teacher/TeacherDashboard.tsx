@@ -7,7 +7,11 @@ import { PortalSidebarLayout } from '../../layouts/PortalSidebarLayout.js';
 import { Card } from '../../components/ui/Card.js';
 import { Badge } from '../../components/ui/Badge.js';
 import { Button } from '../../components/ui/Button.js';
+import { Modal } from '../../components/ui/Modal.js';
+import { Input } from '../../components/ui/Input.js';
+import { Select } from '../../components/ui/Select.js';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner.js';
+import { getTeacherNavItems } from '../../utils/navigation.js';
 import {
   BookOpen,
   Users,
@@ -18,16 +22,77 @@ import {
   UploadCloud,
   UserCheck,
   Sparkles,
+  Edit,
+  Mail,
+  Phone,
+  CheckCircle2,
+  AlertCircle,
+  Save,
 } from 'lucide-react';
 
 export const TeacherDashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
 
   const [students, setStudents] = useState<any[]>([]);
   const [pendingStudents, setPendingStudents] = useState<any[]>([]);
   const [mockTests, setMockTests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Edit Profile Modal state
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [fullName, setFullName] = useState(user?.fullName || '');
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [empId, setEmpId] = useState(user?.teachers_emp_id || '');
+  const [department, setDepartment] = useState(user?.department || 'Science');
+  const [specialization, setSpecialization] = useState(user?.specialization || 'Physics');
+  const [qualification, setQualification] = useState(user?.qualification || 'M.Sc., B.Ed.');
+  const [gender, setGender] = useState(user?.gender || 'MALE');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileMsg, setProfileMsg] = useState<string | null>(null);
+  const [profileErr, setProfileErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      setFullName(user.fullName || '');
+      setPhone(user.phone || '');
+      setEmpId(user.teachers_emp_id || '');
+      setDepartment(user.department || 'Science');
+      setSpecialization(user.specialization || 'Physics');
+      setQualification(user.qualification || 'M.Sc., B.Ed.');
+      setGender(user.gender || 'MALE');
+    }
+  }, [user, isEditProfileOpen]);
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSavingProfile(true);
+      setProfileErr(null);
+      setProfileMsg(null);
+      const res = await teacherApi.completeProfile({
+        full_name: fullName,
+        phone,
+        teachers_emp_id: empId,
+        department,
+        specialization,
+        qualification,
+        gender,
+      });
+      if (res.success) {
+        await refreshUser();
+        setProfileMsg('Profile information updated successfully!');
+        setTimeout(() => {
+          setIsEditProfileOpen(false);
+          setProfileMsg(null);
+        }, 1000);
+      }
+    } catch (err: any) {
+      setProfileErr(err.message || 'Failed to update profile.');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   useEffect(() => {
     async function loadData() {
@@ -50,18 +115,7 @@ export const TeacherDashboard: React.FC = () => {
     loadData();
   }, []);
 
-  const navItems = [
-    { label: 'Overview', path: '/teacher', icon: <BookOpen size={18} /> },
-    { label: 'Student Directory', path: '/teacher/students', icon: <GraduationCap size={18} />, badge: `${students.length}` },
-    { label: 'Upload CSV (Students)', path: '/teacher/students/upload', icon: <UploadCloud size={18} /> },
-    {
-      label: 'Pending Verifications',
-      path: '/teacher/students/verification',
-      icon: <UserCheck size={18} />,
-      badge: pendingStudents.length > 0 ? `${pendingStudents.length}` : undefined,
-    },
-    { label: 'Mock Tests (View Only)', path: '/teacher/mock-tests', icon: <Target size={18} /> },
-  ];
+  const navItems = getTeacherNavItems(pendingStudents.length);
 
   return (
     <PortalSidebarLayout portalTitle={user?.schoolName || 'Faculty Portal'} portalRole="TEACHER" navItems={navItems}>
@@ -93,6 +147,46 @@ export const TeacherDashboard: React.FC = () => {
           <LoadingSpinner message="Loading academic diagnostics..." />
         ) : (
           <>
+            {/* Faculty Profile Summary Card */}
+            <Card variant="glass" padding="md" style={{ borderLeft: '4px solid #0284C7', backgroundColor: '#FFFFFF' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#F0F9FF', border: '2px solid #BAE6FD', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0284C7', fontWeight: 800, fontSize: '22px' }}>
+                    {(user?.fullName || 'F').charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                        {user?.fullName || 'Faculty Member'}
+                      </h2>
+                      <Badge variant="info">{user?.designation || 'Teacher'}</Badge>
+                    </div>
+                    <p style={{ margin: '3px 0 0', fontSize: '13px', color: '#475569' }}>
+                      {user?.department ? `${user.department} • ` : ''}{user?.schoolName || 'School'}
+                    </p>
+                    <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginTop: '6px', fontSize: '12px', color: '#64748B' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Mail size={13} /> {user?.email}
+                      </span>
+                      {user?.phone && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Phone size={13} /> {user.phone}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<Edit size={14} />}
+                  onClick={() => setIsEditProfileOpen(true)}
+                >
+                  Edit Profile
+                </Button>
+              </div>
+            </Card>
+
             {/* Clickable Quick Metrics */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
               <Card
@@ -204,6 +298,126 @@ export const TeacherDashboard: React.FC = () => {
           </>
         )}
       </div>
+
+      {/* Update Faculty Information Modal */}
+      <Modal
+        isOpen={isEditProfileOpen}
+        onClose={() => {
+          setIsEditProfileOpen(false);
+          setProfileErr(null);
+          setProfileMsg(null);
+        }}
+        title="Update Faculty Profile Information"
+        maxWidth="560px"
+      >
+        {profileMsg && (
+          <div style={{ padding: '12px 16px', borderRadius: '8px', background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#047857', fontSize: '13px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle2 size={16} />
+            <span>{profileMsg}</span>
+          </div>
+        )}
+
+        {profileErr && (
+          <div style={{ padding: '12px 16px', borderRadius: '8px', background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', fontSize: '13px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={16} />
+            <span>{profileErr}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <Input
+            label="Full Name *"
+            type="text"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            required
+          />
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <Input
+              label="Contact Phone Number *"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              required
+            />
+            <Input
+              label="Teacher / Employee ID"
+              type="text"
+              value={empId}
+              onChange={(e) => setEmpId(e.target.value)}
+              placeholder="e.g. EMP-2026-042"
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <Select
+              label="Academic Department *"
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+              options={[
+                { value: 'Science', label: 'Science / PCM' },
+                { value: 'Physics', label: 'Physics' },
+                { value: 'Chemistry', label: 'Chemistry' },
+                { value: 'Mathematics', label: 'Mathematics' },
+                { value: 'Computer Science', label: 'Computer Science' },
+                { value: 'Commerce', label: 'Commerce' },
+                { value: 'Humanities', label: 'Humanities' },
+              ]}
+              required
+            />
+            <Select
+              label="Gender *"
+              value={gender}
+              onChange={(e) => setGender(e.target.value)}
+              options={[
+                { value: 'MALE', label: 'Male' },
+                { value: 'FEMALE', label: 'Female' },
+                { value: 'OTHER', label: 'Other' },
+              ]}
+              required
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <Input
+              label="Specialization / Subject Area"
+              type="text"
+              value={specialization}
+              onChange={(e) => setSpecialization(e.target.value)}
+              placeholder="e.g. Organic Chemistry, Calculus"
+            />
+            <Input
+              label="Highest Qualification"
+              type="text"
+              value={qualification}
+              onChange={(e) => setQualification(e.target.value)}
+              placeholder="e.g. M.Sc., B.Ed., Ph.D."
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="md"
+              onClick={() => setIsEditProfileOpen(false)}
+              disabled={savingProfile}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="gold"
+              size="md"
+              icon={<Save size={16} />}
+              loading={savingProfile}
+            >
+              Save Changes
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </PortalSidebarLayout>
   );
 };

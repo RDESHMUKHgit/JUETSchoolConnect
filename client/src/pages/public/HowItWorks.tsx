@@ -39,9 +39,9 @@ export const HowItWorks: React.FC = () => {
     },
     {
       num: '05',
-      title: 'Actionable Insights & Jaypee Scholarships',
+      title: 'Actionable Insights & Merit Scholarships',
       role: 'All Stakeholders',
-      desc: 'Students receive subject radar diagnostics and weakness alerts. Teachers identify low-accuracy topics in their class. Principals monitor school-wide trends, while high-scoring students earn direct Jaypee University scholarship opportunities.',
+      desc: 'Students receive subject radar diagnostics and weakness alerts. Teachers identify low-accuracy topics in their class. Principals monitor school-wide trends, while high-scoring students earn direct merit scholarship opportunities.',
       icon: <Award size={24} style={{ color: '#059669' }} />,
     },
   ];
@@ -52,7 +52,7 @@ export const HowItWorks: React.FC = () => {
         <div style={{ textAlign: 'center', marginBottom: '56px' }}>
           <Badge variant="gold" size="sm">END-TO-END JOURNEY</Badge>
           <h1 style={{ fontSize: '38px', fontWeight: 800, marginTop: '12px', marginBottom: '16px', color: '#0F172A' }}>
-            How Jaypee School Connect Works
+            How School Connect Works
           </h1>
           <p style={{ fontSize: '18px', color: '#475569', maxWidth: '720px', margin: '0 auto' }}>
             From high school onboarding to real-time test evaluation and institutional intelligence.

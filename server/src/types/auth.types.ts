@@ -19,6 +19,16 @@ export interface JwtUserPayload {
   fullName?: string | null;
   schoolId?: string | null;
   schoolName?: string | null;
+  phone?: string | null;
+  phone_no?: string | null;
+  profile_photo_url?: string | null;
+  designation?: string | null;
+  department?: string | null;
+  qualification?: string | null;
+  specialization?: string | null;
+  apaar?: string | null;
+  admission_no?: string | null;
+  class?: number | null;
 }
 
 declare global {

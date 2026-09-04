@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.js';
 import { testApi } from '../../api/test.api.js';
@@ -7,6 +7,7 @@ import { Card } from '../../components/ui/Card.js';
 import { Badge } from '../../components/ui/Badge.js';
 import { Button } from '../../components/ui/Button.js';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner.js';
+import { getStudentNavItems } from '../../utils/navigation.js';
 import {
   GraduationCap,
   Target,
@@ -16,6 +17,10 @@ import {
   TrendingUp,
   CheckCircle,
   FileText,
+  Edit,
+  Mail,
+  Phone,
+  Trophy,
 } from 'lucide-react';
 
 export const StudentDashboard: React.FC = () => {
@@ -31,7 +36,7 @@ export const StudentDashboard: React.FC = () => {
       try {
         setLoading(true);
         const [hRes, tRes] = await Promise.all([
-          testApi.getHistory().catch(() => ({ attempts: [] })),
+          testApi.getHistory({ limit: 20 }).catch(() => ({ attempts: [] })),
           testApi.getMockTests().catch(() => ({ mockTests: [] })),
         ]);
         setHistory(hRes.attempts || []);
@@ -58,15 +63,27 @@ export const StudentDashboard: React.FC = () => {
 
   const qualifiesForScholarship = bestAttempt && bestAttempt.percentage >= 80;
 
-  const navItems = [
-    { label: 'Dashboard', path: '/student', icon: <GraduationCap size={18} /> },
-    { label: 'Attempt Mock Tests', path: '/student/mock-tests', icon: <Target size={18} />, badge: `${mockTests.length} ready` },
-    { label: 'Test History', path: '/student/history', icon: <FileText size={18} />, badge: `${totalAttempts}` },
-  ];
+  // Filter active unattempted tests with valid access keys
+  const activeReadyTests = useMemo(() => {
+    return mockTests.filter((t) => {
+      if (t.has_attempted) return false;
+      const expiresAt = t.access_key_expires_at || t.key_expires_at;
+      return Boolean(t.access_key && expiresAt && new Date(expiresAt) > new Date());
+    });
+  }, [mockTests]);
+
+  // Limit recent attempts to latest 5 sorted newest to oldest
+  const recentAttempts = useMemo(() => {
+    return [...history]
+      .sort((a, b) => new Date(b.submitted_at || b.created_at || 0).getTime() - new Date(a.submitted_at || a.created_at || 0).getTime())
+      .slice(0, 5);
+  }, [history]);
+
+  const navItems = getStudentNavItems(activeReadyTests.length, totalAttempts);
 
   return (
     <PortalSidebarLayout portalTitle="Class 12 Academic Cockpit" portalRole="STUDENT" navItems={navItems}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         {/* Welcome Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
           <div>
@@ -90,6 +107,56 @@ export const StudentDashboard: React.FC = () => {
           </Button>
         </div>
 
+        {/* Student Profile Card (Before statistics) */}
+        <Card variant="glass" padding="md" style={{ borderLeft: '4px solid #10B981', backgroundColor: '#FFFFFF' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              {user?.profile_photo_url ? (
+                <img
+                  src={user.profile_photo_url}
+                  alt={user?.fullName || 'Student'}
+                  style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #E2E8F0' }}
+                />
+              ) : (
+                <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#ECFDF5', border: '2px solid #A7F3D0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#059669', fontWeight: 800, fontSize: '22px' }}>
+                  {(user?.fullName || 'S').charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                    {user?.fullName || 'Candidate'}
+                  </h2>
+                  <Badge variant="success">Class 12 Candidate</Badge>
+                </div>
+                <p style={{ margin: '3px 0 0', fontSize: '13px', color: '#475569' }}>
+                  {user?.schoolName || 'School'}
+                  {user?.admission_no ? ` • Admission: ${user.admission_no}` : ''}
+                  {user?.apaar ? ` • APAAR: ${user.apaar}` : ''}
+                </p>
+                <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginTop: '6px', fontSize: '12px', color: '#64748B' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Mail size={13} /> {user?.email}
+                  </span>
+                  {(user?.phone_no || user?.phone) && (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Phone size={13} /> {user.phone_no || user.phone}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<Edit size={14} />}
+              onClick={() => navigate('/student/profile-setup')}
+            >
+              Edit Profile
+            </Button>
+          </div>
+        </Card>
+
         {/* Jaypee Scholarship Alert Banner (if qualified) */}
         {qualifiesForScholarship && (
           <div
@@ -110,10 +177,10 @@ export const StudentDashboard: React.FC = () => {
               <Award size={32} style={{ color: '#9A751A' }} />
               <div>
                 <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>
-                  Congratulations! You Qualify for Jaypee Merit Scholarship Credits
+                  Congratulations! You Qualify for Platform Merit Scholarship Credits
                 </h3>
                 <p style={{ fontSize: '13px', color: '#475569', marginTop: '2px' }}>
-                  Your top score of <strong>{bestAttempt.percentage}%</strong> qualifies you for tuition fee waivers at Jaypee University.
+                  Your top score of <strong>{bestAttempt.percentage}%</strong> qualifies you for institutional tuition fee waivers and academic counseling.
                 </p>
               </div>
             </div>
@@ -188,36 +255,45 @@ export const StudentDashboard: React.FC = () => {
                 onClick={() => navigate('/student/mock-tests')}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '13px', color: '#64748B' }}>Tests Available</span>
+                  <span style={{ fontSize: '13px', color: '#64748B' }}>Active Tests Ready</span>
                   <Target size={20} style={{ color: '#7C3AED' }} />
                 </div>
                 <div style={{ fontSize: '32px', fontWeight: 800, color: '#0F172A', marginTop: '8px' }}>
-                  {mockTests.length}
+                  {activeReadyTests.length}
                 </div>
                 <div style={{ fontSize: '12px', color: '#475569', marginTop: '4px' }}>
-                  Ready to attempt today &rarr;
+                  With valid access keys &rarr;
                 </div>
               </Card>
             </div>
 
-            {/* Section: Active Tests to Attempt */}
+            {/* Section: Active Tests to Attempt (Filtered to valid unexpired keys and unattempted) */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#0F172A' }}>
-                  Recommended Mock Tests
+                  Active Mock Tests Ready for Attempt
                 </h2>
                 <Button variant="ghost" size="sm" icon={<ArrowRight size={14} />} onClick={() => navigate('/student/mock-tests')}>
-                  View All ({mockTests.length})
+                  View All Mock Tests ({mockTests.length})
                 </Button>
               </div>
 
-              {mockTests.length === 0 ? (
+              {activeReadyTests.length === 0 ? (
                 <Card variant="glass" padding="lg" style={{ textAlign: 'center' }}>
-                  <p style={{ color: '#475569' }}>No active tests scheduled right now. Check back soon!</p>
+                  <Target size={36} style={{ color: '#94A3B8', margin: '0 auto 12px' }} />
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', marginBottom: '4px' }}>
+                    No Tests with Active Access Keys
+                  </h3>
+                  <p style={{ color: '#475569', fontSize: '13px', maxWidth: '440px', margin: '0 auto 14px' }}>
+                    Mock tests require an active 6-digit access key issued by your teacher. When your faculty activates a test session, it will appear here.
+                  </p>
+                  <Button variant="secondary" size="sm" onClick={() => navigate('/student/mock-tests')}>
+                    Inspect Full Mock Test Catalog
+                  </Button>
                 </Card>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-                  {mockTests.slice(0, 2).map((test) => (
+                  {activeReadyTests.slice(0, 2).map((test) => (
                     <Card key={test.mock_test_id} variant="gold" padding="lg" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -228,7 +304,7 @@ export const StudentDashboard: React.FC = () => {
                           {test.title}
                         </h3>
                         <p style={{ fontSize: '13px', color: '#475569', marginBottom: '16px' }}>
-                          {test.total_questions} Questions | Max Marks: {test.max_marks} | Negative: {test.negative_marking ? 'Yes' : 'None'}
+                          {test.total_questions} Questions | Max Marks: {test.max_marks} | Marking: +4 / -1
                         </p>
                       </div>
 
@@ -236,9 +312,9 @@ export const StudentDashboard: React.FC = () => {
                         variant="gold"
                         size="md"
                         icon={<Target size={16} />}
-                        onClick={() => navigate(`/student/attempt/${test.mock_test_id}`)}
+                        onClick={() => navigate('/student/mock-tests')}
                       >
-                        Start Test Attempt
+                        Enter Access Key & Attempt
                       </Button>
                     </Card>
                   ))}
@@ -246,24 +322,24 @@ export const StudentDashboard: React.FC = () => {
               )}
             </div>
 
-            {/* Section: Recent Attempt History */}
+            {/* Section: Recent Attempt History (Latest 5 sorted newest to oldest) */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#0F172A' }}>
-                  Recent Attempts
+                  Recent Attempts (Latest 5)
                 </h2>
                 <Button variant="ghost" size="sm" icon={<ArrowRight size={14} />} onClick={() => navigate('/student/history')}>
-                  Full History
+                  Full History ({history.length})
                 </Button>
               </div>
 
-              {history.length === 0 ? (
+              {recentAttempts.length === 0 ? (
                 <Card variant="glass" padding="lg" style={{ textAlign: 'center' }}>
                   <p style={{ color: '#475569' }}>You haven't attempted any tests yet. Click "Launch Mock Test" above to start your first session!</p>
                 </Card>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {history.slice(0, 3).map((att) => (
+                  {recentAttempts.map((att) => (
                     <Card key={att.attempt_id} variant="glass" padding="md">
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                         <div>
@@ -271,7 +347,7 @@ export const StudentDashboard: React.FC = () => {
                             {att.mock_test?.title || 'Mock Test Attempt'}
                           </h4>
                           <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
-                            Attempted on {new Date(att.submitted_at).toLocaleDateString()} | Correct: {att.correct_ans} | Wrong: {att.wrong_ans}
+                            Attempted on {new Date(att.submitted_at || att.created_at).toLocaleDateString()} | Correct: {att.correct_ans} | Wrong: {att.wrong_ans} | Time Taken: {Math.round((att.time_taken || 0) / 60)} mins
                           </div>
                         </div>
 
@@ -289,7 +365,7 @@ export const StudentDashboard: React.FC = () => {
                             size="sm"
                             onClick={() => navigate(`/student/analysis/${att.attempt_id}`)}
                           >
-                            Review
+                            View Result
                           </Button>
                         </div>
                       </div>
