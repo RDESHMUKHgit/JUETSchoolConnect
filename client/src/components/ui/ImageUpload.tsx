@@ -4,7 +4,7 @@ import { UploadCloud, X, Image as ImageIcon, AlertCircle, CheckCircle2, RefreshC
 import { Button } from './Button.js';
 
 interface ImageUploadProps {
-  bucket: 'profile-images' | 'question-images';
+  bucket?: string;
   value?: string | null;
   onChange: (url: string) => void;
   label?: string;
@@ -17,7 +17,7 @@ const MAX_FILE_SIZE_BYTES = 300 * 1024; // 300 KB strictly enforced
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 export const ImageUpload: React.FC<ImageUploadProps> = ({
-  bucket,
+  bucket = 'question-images',
   value,
   onChange,
   label = 'Upload Image',

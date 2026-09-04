@@ -90,7 +90,7 @@ export const TeacherProfileSetup: React.FC = () => {
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <ImageUpload
-            bucket="profile-images"
+            bucket="question-images"
             value={profilePhotoUrl}
             onChange={setProfilePhotoUrl}
             label="Faculty Profile Picture (Max 300 KB)"

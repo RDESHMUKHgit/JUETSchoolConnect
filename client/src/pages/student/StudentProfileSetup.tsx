@@ -455,7 +455,7 @@ export const StudentProfileSetup: React.FC = () => {
             </div>
 
             <ImageUpload
-              bucket="profile-images"
+              bucket="question-images"
               value={profilePhotoUrl}
               onChange={setProfilePhotoUrl}
               label="Student Profile Picture (Max 300 KB)"

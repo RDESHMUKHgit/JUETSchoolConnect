@@ -6,45 +6,17 @@
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- ---------------------------------------------------------------------
--- 0. SUPABASE STORAGE BUCKETS CONFIGURATION (300 KB LIMIT)
+-- 0. SUPABASE STORAGE BUCKET CONFIGURATION (QUESTION IMAGES ONLY)
 -- ---------------------------------------------------------------------
 
--- Insert buckets into storage.buckets if not existing
+-- Single dedicated bucket for question images (and image assets) capped at 300 KB
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES 
-  ('question-images', 'question-images', true, 307200, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif']),
-  ('profile-images', 'profile-images', true, 307200, ARRAY['image/jpeg', 'image/png', 'image/webp'])
+  ('question-images', 'question-images', true, 307200, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 ON CONFLICT (id) DO UPDATE SET
   public = EXCLUDED.public,
   file_size_limit = 307200,
   allowed_mime_types = EXCLUDED.allowed_mime_types;
-
--- Storage RLS Policies: profile-images
-DROP POLICY IF EXISTS "Public Read Profile Images" ON storage.objects;
-CREATE POLICY "Public Read Profile Images"
-ON storage.objects FOR SELECT
-USING (bucket_id = 'profile-images');
-
-DROP POLICY IF EXISTS "Authenticated Users Upload Profile Images" ON storage.objects;
-CREATE POLICY "Authenticated Users Upload Profile Images"
-ON storage.objects FOR INSERT
-TO authenticated
-WITH CHECK (
-  bucket_id = 'profile-images'
-);
-
-DROP POLICY IF EXISTS "Users Update Own Profile Images" ON storage.objects;
-CREATE POLICY "Users Update Own Profile Images"
-ON storage.objects FOR UPDATE
-TO authenticated
-USING (bucket_id = 'profile-images')
-WITH CHECK (bucket_id = 'profile-images');
-
-DROP POLICY IF EXISTS "Users Delete Own Profile Images" ON storage.objects;
-CREATE POLICY "Users Delete Own Profile Images"
-ON storage.objects FOR DELETE
-TO authenticated
-USING (bucket_id = 'profile-images');
 
 -- Storage RLS Policies: question-images
 DROP POLICY IF EXISTS "Public Read Question Images" ON storage.objects;
@@ -83,7 +55,15 @@ ALTER TABLE public.test_attempts
   ADD COLUMN IF NOT EXISTS status character varying DEFAULT 'COMPLETED',
   ADD COLUMN IF NOT EXISTS question_timings jsonb DEFAULT '{}';
 
--- Clean up existing duplicate attempts (if any) prior to creating the unique index,
+-- Normalize any NULL values in test_attempts
+UPDATE public.test_attempts 
+SET 
+  score_obtained = COALESCE(score_obtained, 0),
+  percentage = COALESCE(percentage, 0),
+  status = COALESCE(status, 'COMPLETED')
+WHERE score_obtained IS NULL OR percentage IS NULL OR status IS NULL;
+
+-- Clean up existing duplicate attempts prior to creating unique index,
 -- retaining the highest-scoring (or most recent) attempt per student per mock test.
 DELETE FROM public.test_attempts
 WHERE attempt_id NOT IN (
@@ -106,14 +86,15 @@ ALTER TABLE public.student
   ADD COLUMN IF NOT EXISTS teacher_id uuid REFERENCES public.teachers(teacher_id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS profile_photo_url text;
 
--- Ensure public.teachers and public.principals have profile columns
+-- Ensure public.teachers has required profile columns
 ALTER TABLE public.teachers 
   ADD COLUMN IF NOT EXISTS profile_photo_url text,
   ADD COLUMN IF NOT EXISTS qualification character varying,
   ADD COLUMN IF NOT EXISTS specialization character varying,
   ADD COLUMN IF NOT EXISTS gender character varying;
 
-ALTER TABLE public.principals 
+-- Ensure public.principal (singular) has required profile columns
+ALTER TABLE public.principal 
   ADD COLUMN IF NOT EXISTS profile_photo_url text;
 
 -- Fast index for student directory queries by school & status

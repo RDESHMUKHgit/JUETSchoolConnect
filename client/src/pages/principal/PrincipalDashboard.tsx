@@ -386,7 +386,7 @@ export const PrincipalDashboard: React.FC = () => {
 
         <form onSubmit={handleUpdateProfileSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <ImageUpload
-            bucket="profile-images"
+            bucket="question-images"
             value={profilePhotoUrl}
             onChange={(url) => setProfilePhotoUrl(url)}
             label="Principal Profile Photo (Max 300 KB)"
