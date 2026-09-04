@@ -5,6 +5,7 @@ import { Card } from '../../components/ui/Card.js';
 import { Input } from '../../components/ui/Input.js';
 import { Select } from '../../components/ui/Select.js';
 import { Button } from '../../components/ui/Button.js';
+import { ImageUpload } from '../../components/ui/ImageUpload.js';
 import { BookOpen, User, Phone, ArrowRight, ShieldCheck } from 'lucide-react';
 
 export const TeacherProfileSetup: React.FC = () => {
@@ -12,9 +13,10 @@ export const TeacherProfileSetup: React.FC = () => {
   const { user, completeTeacherProfile } = useAuth();
 
   // Teacher profile setup state (Full Name is pre-set by the Principal during account provisioning)
-  const [phone, setPhone] = useState('');
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState(user?.profile_photo_url || '');
+  const [phone, setPhone] = useState(user?.phone || '');
   const [empId, setEmpId] = useState('');
-  const [department, setDepartment] = useState('Science');
+  const [department, setDepartment] = useState(user?.department || 'Science');
   const [specialization, setSpecialization] = useState('Physics');
   const [qualification, setQualification] = useState('M.Sc., B.Ed.');
   const [gender, setGender] = useState('MALE');
@@ -35,6 +37,7 @@ export const TeacherProfileSetup: React.FC = () => {
         specialization,
         qualification,
         gender,
+        profile_photo_url: profilePhotoUrl || undefined,
       });
       navigate(nextStep);
     } catch (err: any) {
@@ -82,6 +85,12 @@ export const TeacherProfileSetup: React.FC = () => {
         )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <ImageUpload
+            bucket="profile-images"
+            value={profilePhotoUrl}
+            onChange={setProfilePhotoUrl}
+            label="Faculty Profile Picture (Max 300 KB)"
+          />
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <Input

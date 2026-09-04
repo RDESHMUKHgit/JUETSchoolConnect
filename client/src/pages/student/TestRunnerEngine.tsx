@@ -20,6 +20,8 @@ import {
   markQuestionVisited,
   saveCurrentQuestionIndex,
   clearExamSession,
+  addQuestionTimeSpent,
+  getQuestionTimings,
   ExamAnswerState,
 } from '../../utils/examStorage.js';
 
@@ -43,6 +45,9 @@ export const TestRunnerEngine: React.FC = () => {
 
   // Result state
   const [result, setResult] = useState<any | null>(null);
+
+  // Per-question dwell time tracking
+  const questionStartTimeRef = React.useRef<number>(Date.now());
 
   // 1. Initialize Test & Questions
   useEffect(() => {
@@ -104,9 +109,18 @@ export const TestRunnerEngine: React.FC = () => {
 
       const elapsedSeconds = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
 
+      // Flush dwell time for currently active question
+      const activeQ = questions[currentIndex];
+      if (activeQ?.question_id) {
+        const dwellSec = Math.max(1, Math.round((Date.now() - questionStartTimeRef.current) / 1000));
+        addQuestionTimeSpent(testId, activeQ.question_id, dwellSec);
+      }
+      const questionTimings = getQuestionTimings(testId);
+
       const res = await testApi.submitTestAttempt(testId, {
         answers: answersMap,
         time_taken: elapsedSeconds,
+        question_timings: questionTimings,
       });
 
       if (res.success && res.result) {
@@ -163,11 +177,19 @@ export const TestRunnerEngine: React.FC = () => {
     if (updated) setAnswers({ ...updated.answers });
   };
 
-  // Navigate question
+  // Navigate question (Strictly forward-only: index >= currentIndex)
   const handleNavigate = (index: number) => {
-    if (index < 0 || index >= questions.length || !testId) return;
-    const targetQId = questions[index]?.question_id;
+    if (index < currentIndex || index >= questions.length || !testId) return;
 
+    // Record dwell time for departing question
+    const departingQ = questions[currentIndex];
+    if (departingQ?.question_id) {
+      const dwellSec = Math.max(1, Math.round((Date.now() - questionStartTimeRef.current) / 1000));
+      addQuestionTimeSpent(testId, departingQ.question_id, dwellSec);
+    }
+    questionStartTimeRef.current = Date.now();
+
+    const targetQId = questions[index]?.question_id;
     if (targetQId) {
       const updated = markQuestionVisited(testId, targetQId);
       if (updated) setAnswers({ ...updated.answers });
@@ -236,7 +258,6 @@ export const TestRunnerEngine: React.FC = () => {
               totalQuestions={questions.length}
               isMarkedForReview={Boolean(currentState?.isMarkedForReview)}
               hasSelectedOption={Boolean(currentState?.selectedOptionKey)}
-              onPrevious={() => handleNavigate(currentIndex - 1)}
               onNext={() => {
                 if (currentIndex === questions.length - 1) {
                   setSubmitConfirmOpen(true);

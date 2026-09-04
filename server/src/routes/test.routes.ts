@@ -8,6 +8,8 @@ import {
   getAttemptAnalysis,
   getFullTestPaper,
   validateAccessKey,
+  getMockTestLeaderboard,
+  getSchoolOverallLeaderboard,
 } from '../controllers/test.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
 import { requireRole } from '../middlewares/role.middleware.js';
@@ -29,5 +31,9 @@ router.post('/mock-tests/:testId/submit', requireRole('STUDENT'), submitTestAtte
 // History and detailed analysis
 router.get('/history/:studentId?', getStudentTestHistory);
 router.get('/analysis/:attemptId', getAttemptAnalysis);
+
+// Leaderboards: accessible by Student, Teacher, Principal, Admin
+router.get('/leaderboard/mock-test/:testId', getMockTestLeaderboard);
+router.get('/leaderboard/school', getSchoolOverallLeaderboard);
 
 export default router;

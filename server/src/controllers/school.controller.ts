@@ -88,3 +88,32 @@ export const updateSchoolProfile = async (req: Request, res: Response): Promise<
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+/**
+ * Public endpoint to fetch verified teachers of a specific school for the Student Registration Step 2
+ */
+export const getVerifiedTeachersForSchool = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { schoolId } = req.params;
+    if (!schoolId) {
+      res.status(400).json({ success: false, message: 'School ID is required.' });
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('teachers')
+      .select('teacher_id, full_name, email, department, designation, status')
+      .eq('school_id', schoolId)
+      .in('status', ['ACTIVE', 'VERIFIED'])
+      .order('full_name', { ascending: true });
+
+    if (error) {
+      res.status(500).json({ success: false, message: 'Failed to fetch teachers: ' + error.message });
+      return;
+    }
+
+    res.status(200).json({ success: true, teachers: data || [] });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

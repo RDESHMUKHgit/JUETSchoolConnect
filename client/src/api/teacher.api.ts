@@ -2,7 +2,7 @@ import { apiRequest } from './client.js';
 
 export const teacherApi = {
   completeProfile: (data: {
-    full_name: string;
+    full_name?: string;
     phone?: string;
     teachers_emp_id?: string;
     designation?: string;
@@ -10,6 +10,8 @@ export const teacherApi = {
     qualification?: string;
     specialization?: string;
     dob?: string;
+    gender?: string;
+    profile_photo_url?: string;
   }) =>
     apiRequest('/teacher/profile-setup', {
       method: 'POST',
@@ -24,7 +26,22 @@ export const teacherApi = {
       body: JSON.stringify({ students }),
     }),
 
-  getPendingStudents: () => apiRequest('/teacher/students/pending'),
+  getPendingStudents: (pageOrParams?: number | { page?: number; limit?: number }, limitArg?: number) => {
+    let page: number | undefined;
+    let limit: number | undefined;
+    if (typeof pageOrParams === 'object' && pageOrParams !== null) {
+      page = pageOrParams.page;
+      limit = pageOrParams.limit;
+    } else {
+      page = pageOrParams;
+      limit = limitArg;
+    }
+    const params = new URLSearchParams();
+    if (page) params.append('page', String(page));
+    if (limit) params.append('limit', String(limit));
+    const qs = params.toString();
+    return apiRequest(`/teacher/students/pending${qs ? `?${qs}` : ''}`);
+  },
 
   verifyStudent: (studentId: string) =>
     apiRequest(`/teacher/students/${studentId}/verify`, {

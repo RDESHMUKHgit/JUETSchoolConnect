@@ -11,59 +11,91 @@ import { supabase } from '../config/supabase.js';
 
 export const getQuestionBank = async (req: Request, res: Response): Promise<void> => {
   try {
-    // 1. Fetch all questions from the question bank
-    const { data: bankQuestions, error: bankErr } = await supabase
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
+    const offset = (page - 1) * limit;
+
+    const subject = req.query.subject as string;
+    const search = req.query.search as string;
+    const usage = req.query.usage as string; // 'ALL' | 'UNUSED' | 'USED'
+
+    // 1. If usage filter is UNUSED or USED, prefetch used bank IDs
+    let usedBankIds: string[] = [];
+    if (usage === 'UNUSED' || usage === 'USED') {
+      const { data: usedQuestions } = await supabase
+        .from('questions')
+        .select('bank_question_id')
+        .not('bank_question_id', 'is', null);
+
+      usedBankIds = Array.from(
+        new Set((usedQuestions || []).map((q: any) => q.bank_question_id).filter(Boolean))
+      );
+    }
+
+    // 2. Build filtered and paginated query
+    let query = supabase
       .from('question_bank')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .select('*', { count: 'exact' });
+
+    if (subject && subject !== 'ALL') {
+      query = query.eq('subject_name', subject);
+    }
+
+    if (search && search.trim()) {
+      query = query.ilike('question_text', `%${search.trim()}%`);
+    }
+
+    if (usage === 'USED') {
+      if (usedBankIds.length === 0) {
+        res.status(200).json({ success: true, total: 0, page, limit, questions: [] });
+        return;
+      }
+      query = query.in('bank_question_id', usedBankIds);
+    } else if (usage === 'UNUSED' && usedBankIds.length > 0) {
+      query = query.not('bank_question_id', 'in', `(${usedBankIds.join(',')})`);
+    }
+
+    query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+
+    const { data: bankQuestions, count, error: bankErr } = await query;
 
     if (bankErr) {
       res.status(500).json({ success: false, message: 'Failed to fetch question bank: ' + bankErr.message });
       return;
     }
 
-    // 2. Fetch all questions currently linked to mock tests to cross-reference usage
-    const { data: activeQuestions, error: activeErr } = await supabase
-      .from('questions')
-      .select('question_id, bank_question_id, question_text, mock_test:mock_test_id(mock_test_id, title)');
+    const currentQuestions = bankQuestions || [];
+    const currentBankIds = currentQuestions.map((q: any) => q.bank_question_id).filter(Boolean);
 
-    if (activeErr) {
-      console.warn('Note on active questions query:', activeErr.message);
+    // 3. Fast indexed lookup of active usage ONLY for the current page's slice!
+    let activeSliceQuestions: any[] = [];
+    if (currentBankIds.length > 0) {
+      const { data: activeData } = await supabase
+        .from('questions')
+        .select('bank_question_id, question_text, mock_test:mock_test_id(mock_test_id, title)')
+        .in('bank_question_id', currentBankIds);
+
+      activeSliceQuestions = activeData || [];
     }
 
-    // Map usage by bank_question_id and by normalized question_text
     const usageByBankId = new Map<string, Array<{ testId: string; title: string }>>();
-    const usageByText = new Map<string, Array<{ testId: string; title: string }>>();
-
-    activeQuestions?.forEach((aq: any) => {
+    activeSliceQuestions.forEach((aq: any) => {
       const testInfo = {
         testId: aq.mock_test?.mock_test_id || '',
         title: aq.mock_test?.title || 'Untitled Examination',
       };
-
       if (aq.bank_question_id) {
         const existing = usageByBankId.get(aq.bank_question_id) || [];
         existing.push(testInfo);
         usageByBankId.set(aq.bank_question_id, existing);
       }
-
-      if (aq.question_text) {
-        const normalizedText = aq.question_text.trim().toLowerCase();
-        const existing = usageByText.get(normalizedText) || [];
-        existing.push(testInfo);
-        usageByText.set(normalizedText, existing);
-      }
     });
 
-    // 3. Correlate each bank question with its usage history
-    const enrichedQuestions = (bankQuestions || []).map((bq: any) => {
-      const normalizedBankText = (bq.question_text || '').trim().toLowerCase();
+    // 4. Enrich current page slice
+    const enrichedQuestions = currentQuestions.map((bq: any) => {
       const usagesFromId = usageByBankId.get(bq.bank_question_id) || [];
-      const usagesFromText = usageByText.get(normalizedBankText) || [];
-
-      // Merge and deduplicate usages by testId
       const uniqueUsagesMap = new Map<string, { testId: string; title: string }>();
-      [...usagesFromId, ...usagesFromText].forEach((u) => {
+      usagesFromId.forEach((u) => {
         if (u.testId) uniqueUsagesMap.set(u.testId, u);
       });
       const usedInTests = Array.from(uniqueUsagesMap.values());
@@ -78,7 +110,9 @@ export const getQuestionBank = async (req: Request, res: Response): Promise<void
 
     res.status(200).json({
       success: true,
-      total: enrichedQuestions.length,
+      total: count || 0,
+      page,
+      limit,
       questions: enrichedQuestions,
     });
   } catch (err: any) {

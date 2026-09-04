@@ -4,7 +4,7 @@ import { Badge } from '../ui/Badge.js';
 import { Button } from '../ui/Button.js';
 import { LoadingSpinner } from '../ui/LoadingSpinner.js';
 import { MathRenderer } from '../common/MathRenderer.js';
-import { Search, Eye, Edit3, Trash2, HelpCircle } from 'lucide-react';
+import { Search, Eye, Edit3, Trash2, HelpCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface QuestionBankListTabProps {
   filteredQuestions: any[];
@@ -13,6 +13,11 @@ interface QuestionBankListTabProps {
   searchQuery: string;
   subjectFilter: string;
   usageFilter: string;
+  page?: number;
+  limit?: number;
+  totalCount?: number;
+  onPageChange?: (p: number) => void;
+  onLimitChange?: (lim: number) => void;
   onSearchChange: (q: string) => void;
   onSubjectFilterChange: (sub: any) => void;
   onUsageFilterChange: (usage: any) => void;
@@ -31,6 +36,11 @@ export const QuestionBankListTab: React.FC<QuestionBankListTabProps> = ({
   searchQuery,
   subjectFilter,
   usageFilter,
+  page = 1,
+  limit = 20,
+  totalCount = 0,
+  onPageChange,
+  onLimitChange,
   onSearchChange,
   onSubjectFilterChange,
   onUsageFilterChange,
@@ -41,6 +51,8 @@ export const QuestionBankListTab: React.FC<QuestionBankListTabProps> = ({
   onEdit,
   onDelete,
 }) => {
+  const totalPages = Math.max(1, Math.ceil(totalCount / limit));
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Filter & Search Bar */}
@@ -50,7 +62,7 @@ export const QuestionBankListTab: React.FC<QuestionBankListTabProps> = ({
             <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
             <input
               type="text"
-              placeholder="Search question text or formulas..."
+              placeholder="Debounced search question text or formulas..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               style={{ width: '100%', padding: '10px 14px 10px 38px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', backgroundColor: '#FFFFFF' }}
@@ -80,6 +92,22 @@ export const QuestionBankListTab: React.FC<QuestionBankListTabProps> = ({
               <option value="UNUSED">✨ Fresh / Unused Only</option>
               <option value="USED">⚠️ Previously Asked Only</option>
             </select>
+
+            {/* Page Limit Selector */}
+            {onLimitChange && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>Show:</span>
+                <select
+                  value={limit}
+                  onChange={(e) => onLimitChange(Number(e.target.value))}
+                  style={{ padding: '7px 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12px', backgroundColor: '#FFFFFF', fontWeight: 600 }}
+                >
+                  {[10, 20, 50, 100].map((num) => (
+                    <option key={num} value={num}>{num} / page</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <Button variant="ghost" size="sm" onClick={onSelectAllUnused}>
               Select All Unused in View
@@ -131,49 +159,66 @@ export const QuestionBankListTab: React.FC<QuestionBankListTabProps> = ({
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ fontWeight: 800, color: '#0F172A', fontSize: '14px' }}>
-                          Q{q.question_number || idx + 1}.
+                          Q{(page - 1) * limit + idx + 1}.
                         </span>
                         <Badge variant="gold">{q.subject_name}</Badge>
                         <Badge variant="default">+{q.marks_per_question} / -{q.negative_marking}</Badge>
                       </div>
 
                       {/* Usage Badge */}
-                      {q.is_used ? (
-                        <Badge variant="warning">
-                          Previously Asked ({q.usage_count || 1})
-                        </Badge>
-                      ) : (
-                        <Badge variant="success">✨ Fresh (Unused)</Badge>
-                      )}
+                      <div>
+                        {q.is_used ? (
+                          <Badge variant="warning" size="sm">
+                            Used in Tests ({q.usage_count || 1})
+                          </Badge>
+                        ) : (
+                          <Badge variant="success" size="sm">
+                            ✨ Fresh / Unused
+                          </Badge>
+                        )}
+                      </div>
                     </div>
 
-                    <div style={{ fontSize: '14px', color: '#1E293B', lineHeight: 1.6, marginBottom: '10px' }}>
+                    {/* Question Statement */}
+                    <div
+                      style={{
+                        fontSize: '14px',
+                        color: '#1E293B',
+                        lineHeight: 1.6,
+                        marginBottom: '10px',
+                        maxHeight: '120px',
+                        overflow: 'hidden',
+                      }}
+                    >
                       <MathRenderer content={q.question_text} />
                     </div>
 
+                    {/* Image indicator if present */}
                     {q.question_image_url && (
                       <div style={{ marginBottom: '10px' }}>
                         <img
                           src={q.question_image_url}
-                          alt="Diagram"
-                          style={{ maxHeight: '120px', borderRadius: '6px', border: '1px solid #E2E8F0' }}
+                          alt="Question Diagram"
+                          style={{ maxHeight: '80px', borderRadius: '6px', border: '1px solid #E2E8F0' }}
                         />
                       </div>
                     )}
 
-                    {/* Options Preview */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '6px', fontSize: '12px' }}>
+                    {/* Compact Option Previews */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '6px' }}>
                       {Array.isArray(q.option_array) &&
-                        q.option_array.map((opt: any) => {
-                          const isCorrect = Array.isArray(q.answers) ? q.answers.includes(opt.key) : q.answers === opt.key;
+                        q.option_array.slice(0, 4).map((opt: any, optIdx: number) => {
+                          const correctKey = Array.isArray(q.answers) ? q.answers[0] : q.answers;
+                          const isCorrect = String(opt.key).toUpperCase() === String(correctKey).toUpperCase();
                           return (
                             <div
-                              key={opt.key}
+                              key={optIdx}
                               style={{
                                 padding: '4px 8px',
                                 borderRadius: '4px',
                                 backgroundColor: isCorrect ? '#ECFDF5' : '#F8FAFC',
-                                border: isCorrect ? '1px solid #10B981' : '1px solid #E2E8F0',
+                                border: isCorrect ? '1px solid #A7F3D0' : '1px solid #E2E8F0',
+                                fontSize: '12px',
                                 color: isCorrect ? '#065F46' : '#475569',
                                 display: 'flex',
                                 gap: '6px',
@@ -223,6 +268,38 @@ export const QuestionBankListTab: React.FC<QuestionBankListTabProps> = ({
               </Card>
             );
           })}
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && onPageChange && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', borderTop: '1px solid #E2E8F0' }}>
+              <span style={{ fontSize: '13px', color: '#64748B' }}>
+                Showing {(page - 1) * limit + 1} - {Math.min(page * limit, totalCount)} of {totalCount} questions in bank
+              </span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={page <= 1}
+                  icon={<ChevronLeft size={14} />}
+                  onClick={() => onPageChange(page - 1)}
+                >
+                  Previous
+                </Button>
+                <span style={{ padding: '6px 12px', fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={page >= totalPages}
+                  icon={<ChevronRight size={14} />}
+                  onClick={() => onPageChange(page + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

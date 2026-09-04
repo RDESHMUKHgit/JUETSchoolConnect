@@ -22,6 +22,7 @@ export const completeTeacherProfile = async (req: Request, res: Response): Promi
       specialization,
       gender,
       dob,
+      profile_photo_url,
     } = req.body;
 
     const updateFields: Record<string, any> = {
@@ -38,6 +39,9 @@ export const completeTeacherProfile = async (req: Request, res: Response): Promi
     };
     if (full_name) {
       updateFields.full_name = full_name;
+    }
+    if (profile_photo_url) {
+      updateFields.profile_photo_url = profile_photo_url;
     }
 
     const { data: updated, error } = await supabase
@@ -263,19 +267,30 @@ export const getPendingStudents = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    const { data, error } = await supabase
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
+    const offset = (page - 1) * limit;
+
+    const { data, count, error } = await supabase
       .from('student')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('school_id', schoolId)
       .eq('status', 'PENDING')
-      .order('updated_at', { ascending: false });
+      .order('updated_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) {
       res.status(500).json({ success: false, message: 'Failed to load verification queue: ' + error.message });
       return;
     }
 
-    res.status(200).json({ success: true, pendingStudents: data || [] });
+    res.status(200).json({
+      success: true,
+      pendingStudents: data || [],
+      total: count || 0,
+      page,
+      limit,
+    });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
   }

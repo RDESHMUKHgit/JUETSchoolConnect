@@ -149,24 +149,30 @@ export const ExamQuestionPalette: React.FC<ExamQuestionPaletteProps> = ({
             const qId = questionIds[idx];
             const status = getQuestionStatus(answers[qId]);
             const isCurrent = idx === currentIndex;
+            const isPastLocked = idx < currentIndex;
             const style = getStatusStyles(status, isCurrent);
 
             return (
               <button
                 key={idx}
-                onClick={() => onNavigate(idx)}
+                disabled={isPastLocked}
+                onClick={() => {
+                  if (!isPastLocked) onNavigate(idx);
+                }}
+                title={isPastLocked ? `Question ${idx + 1} locked (Forward-only test)` : `Question ${idx + 1}`}
                 style={{
                   height: '42px',
                   borderRadius: '8px',
                   fontWeight: isCurrent ? 800 : 600,
                   fontSize: '14px',
-                  cursor: 'pointer',
+                  cursor: isPastLocked ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   position: 'relative',
                   transition: 'all 0.15s ease',
                   boxShadow: isCurrent ? '0 0 0 2px #0A192F' : 'none',
+                  opacity: isPastLocked ? 0.55 : 1,
                   ...style,
                 }}
               >

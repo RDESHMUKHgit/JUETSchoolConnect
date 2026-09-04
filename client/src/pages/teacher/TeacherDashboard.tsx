@@ -8,6 +8,7 @@ import { Card } from '../../components/ui/Card.js';
 import { Badge } from '../../components/ui/Badge.js';
 import { Button } from '../../components/ui/Button.js';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner.js';
+import { getTeacherNavItems } from '../../utils/navigation.js';
 import {
   BookOpen,
   Users,
@@ -18,6 +19,9 @@ import {
   UploadCloud,
   UserCheck,
   Sparkles,
+  Edit,
+  Mail,
+  Phone,
 } from 'lucide-react';
 
 export const TeacherDashboard: React.FC = () => {
@@ -50,18 +54,7 @@ export const TeacherDashboard: React.FC = () => {
     loadData();
   }, []);
 
-  const navItems = [
-    { label: 'Overview', path: '/teacher', icon: <BookOpen size={18} /> },
-    { label: 'Student Directory', path: '/teacher/students', icon: <GraduationCap size={18} />, badge: `${students.length}` },
-    { label: 'Upload CSV (Students)', path: '/teacher/students/upload', icon: <UploadCloud size={18} /> },
-    {
-      label: 'Pending Verifications',
-      path: '/teacher/students/verification',
-      icon: <UserCheck size={18} />,
-      badge: pendingStudents.length > 0 ? `${pendingStudents.length}` : undefined,
-    },
-    { label: 'Mock Tests (View Only)', path: '/teacher/mock-tests', icon: <Target size={18} /> },
-  ];
+  const navItems = getTeacherNavItems(pendingStudents.length);
 
   return (
     <PortalSidebarLayout portalTitle={user?.schoolName || 'Faculty Portal'} portalRole="TEACHER" navItems={navItems}>
@@ -93,6 +86,54 @@ export const TeacherDashboard: React.FC = () => {
           <LoadingSpinner message="Loading academic diagnostics..." />
         ) : (
           <>
+            {/* Faculty Profile Summary Card */}
+            <Card variant="glass" padding="md" style={{ borderLeft: '4px solid #0284C7', backgroundColor: '#FFFFFF' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  {user?.profile_photo_url ? (
+                    <img
+                      src={user.profile_photo_url}
+                      alt={user?.fullName || 'Teacher'}
+                      style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #E2E8F0' }}
+                    />
+                  ) : (
+                    <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#F0F9FF', border: '2px solid #BAE6FD', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0284C7', fontWeight: 800, fontSize: '22px' }}>
+                      {(user?.fullName || 'F').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                        {user?.fullName || 'Faculty Member'}
+                      </h2>
+                      <Badge variant="info">{user?.designation || 'Teacher'}</Badge>
+                    </div>
+                    <p style={{ margin: '3px 0 0', fontSize: '13px', color: '#475569' }}>
+                      {user?.department ? `${user.department} • ` : ''}{user?.schoolName || 'School'}
+                    </p>
+                    <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginTop: '6px', fontSize: '12px', color: '#64748B' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Mail size={13} /> {user?.email}
+                      </span>
+                      {user?.phone && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Phone size={13} /> {user.phone}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<Edit size={14} />}
+                  onClick={() => navigate('/teacher/profile-setup')}
+                >
+                  Edit Profile
+                </Button>
+              </div>
+            </Card>
+
             {/* Clickable Quick Metrics */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
               <Card

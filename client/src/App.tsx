@@ -29,6 +29,7 @@ import { PrincipalDashboard } from './pages/principal/PrincipalDashboard.js';
 import { TeacherManagement } from './pages/principal/TeacherManagement.js';
 import { StudentManagement } from './pages/principal/StudentManagement.js';
 import { ViewMockTests } from './pages/principal/ViewMockTests.js';
+import { PrincipalLeaderboard } from './pages/principal/PrincipalLeaderboard.js';
 
 // Teacher Portal & Onboarding
 import { TeacherProfileSetup } from './pages/teacher/TeacherProfileSetup.js';
@@ -37,6 +38,7 @@ import { TeacherDashboard } from './pages/teacher/TeacherDashboard.js';
 import { TeacherStudentDirectory } from './pages/teacher/TeacherStudentDirectory.js';
 import { TeacherStudentUpload } from './pages/teacher/TeacherStudentUpload.js';
 import { TeacherStudentVerification } from './pages/teacher/TeacherStudentVerification.js';
+import { TeacherLeaderboard } from './pages/teacher/TeacherLeaderboard.js';
 
 // Student Portal & Onboarding
 import { StudentProfileSetup } from './pages/student/StudentProfileSetup.js';
@@ -46,6 +48,7 @@ import { MockTestCatalog } from './pages/student/MockTestCatalog.js';
 import { TestRunnerEngine } from './pages/student/TestRunnerEngine.js';
 import { StudentTestHistory } from './pages/student/StudentTestHistory.js';
 import { TestResultAnalysis } from './pages/student/TestResultAnalysis.js';
+import { StudentLeaderboard } from './pages/student/StudentLeaderboard.js';
 
 export function App() {
   return (
@@ -134,6 +137,14 @@ export function App() {
               </RoleGuard>
             }
           />
+          <Route
+            path="/principal/leaderboard"
+            element={
+              <RoleGuard allowedRoles={['PRINCIPAL']}>
+                <PrincipalLeaderboard />
+              </RoleGuard>
+            }
+          />
 
           {/* 4. TEACHER ONBOARDING & PORTAL */}
           <Route
@@ -192,6 +203,14 @@ export function App() {
               </RoleGuard>
             }
           />
+          <Route
+            path="/teacher/leaderboard"
+            element={
+              <RoleGuard allowedRoles={['TEACHER']}>
+                <TeacherLeaderboard />
+              </RoleGuard>
+            }
+          />
 
           {/* 5. STUDENT ONBOARDING & COCKPIT */}
           <Route
@@ -247,6 +266,14 @@ export function App() {
             element={
               <RoleGuard allowedRoles={['STUDENT']}>
                 <TestResultAnalysis />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/student/leaderboard"
+            element={
+              <RoleGuard allowedRoles={['STUDENT']}>
+                <StudentLeaderboard />
               </RoleGuard>
             }
           />
