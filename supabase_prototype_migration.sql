@@ -2,6 +2,9 @@
 -- SCHOOL CONNECT — PRODUCTION SCHEMA MIGRATIONS & EXTENSIONS
 -- =====================================================================
 
+-- Enable Postgres extension for fuzzy text search
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 -- ---------------------------------------------------------------------
 -- 0. SUPABASE STORAGE BUCKETS CONFIGURATION (300 KB LIMIT)
 -- ---------------------------------------------------------------------
@@ -73,13 +76,20 @@ USING (bucket_id = 'question-images');
 -- 1. ENFORCE STRICT SINGLE ATTEMPT PER STUDENT PER MOCK TEST (CRITICAL)
 -- ---------------------------------------------------------------------
 
+-- Ensure public.test_attempts columns exist before deduplication and indexing
+ALTER TABLE public.test_attempts 
+  ADD COLUMN IF NOT EXISTS score_obtained numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS percentage numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS status character varying DEFAULT 'COMPLETED',
+  ADD COLUMN IF NOT EXISTS question_timings jsonb DEFAULT '{}';
+
 -- Clean up existing duplicate attempts (if any) prior to creating the unique index,
 -- retaining the highest-scoring (or most recent) attempt per student per mock test.
 DELETE FROM public.test_attempts
 WHERE attempt_id NOT IN (
   SELECT DISTINCT ON (student_id, mock_test_id) attempt_id
   FROM public.test_attempts
-  ORDER BY student_id, mock_test_id, score DESC, created_at DESC
+  ORDER BY student_id, mock_test_id, score_obtained DESC, created_at DESC
 );
 
 -- Create unique index preventing duplicate test attempts
@@ -90,10 +100,21 @@ ON public.test_attempts (student_id, mock_test_id);
 -- 2. SCHEMA ADJUSTMENTS & PERFORMANCE INDEXES
 -- ---------------------------------------------------------------------
 
--- Ensure public.student has teacher_id and nullable school_id during onboarding
+-- Ensure public.student has teacher_id, profile_photo_url, and nullable school_id during onboarding
 ALTER TABLE public.student 
   ALTER COLUMN school_id DROP NOT NULL,
-  ADD COLUMN IF NOT EXISTS teacher_id uuid REFERENCES public.teachers(teacher_id) ON DELETE SET NULL;
+  ADD COLUMN IF NOT EXISTS teacher_id uuid REFERENCES public.teachers(teacher_id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS profile_photo_url text;
+
+-- Ensure public.teachers and public.principals have profile columns
+ALTER TABLE public.teachers 
+  ADD COLUMN IF NOT EXISTS profile_photo_url text,
+  ADD COLUMN IF NOT EXISTS qualification character varying,
+  ADD COLUMN IF NOT EXISTS specialization character varying,
+  ADD COLUMN IF NOT EXISTS gender character varying;
+
+ALTER TABLE public.principals 
+  ADD COLUMN IF NOT EXISTS profile_photo_url text;
 
 -- Fast index for student directory queries by school & status
 CREATE INDEX IF NOT EXISTS idx_student_school_status 
@@ -102,12 +123,43 @@ ON public.student (school_id, status);
 CREATE INDEX IF NOT EXISTS idx_student_teacher_status 
 ON public.student (teacher_id, status);
 
+-- Ensure mock_test has required access key columns before indexing
+ALTER TABLE public.mock_test 
+  ADD COLUMN IF NOT EXISTS access_key character varying(6),
+  ADD COLUMN IF NOT EXISTS access_key_created_at timestamp with time zone,
+  ADD COLUMN IF NOT EXISTS access_key_expires_at timestamp with time zone,
+  ADD COLUMN IF NOT EXISTS is_multi_subject boolean DEFAULT false;
+
+-- Ensure Master Question Bank table exists
+CREATE TABLE IF NOT EXISTS public.question_bank (
+  bank_question_id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  question_number integer,
+  subject_id uuid REFERENCES public.subject(subject_id) ON DELETE SET NULL,
+  subject_name character varying NOT NULL,
+  question_type character varying DEFAULT 'MCQ',
+  marks_per_question numeric DEFAULT 4,
+  negative_marking numeric DEFAULT 1,
+  question_text text NOT NULL,
+  option_array jsonb NOT NULL,
+  answers jsonb NOT NULL,
+  explanation text,
+  difficulty character varying DEFAULT 'MEDIUM',
+  topic character varying,
+  question_image_url text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now()
+);
+
 -- Fast index for Question Bank pagination and subject filtering
 CREATE INDEX IF NOT EXISTS idx_qbank_subject_created 
 ON public.question_bank (subject_name, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_qbank_created_at_desc 
 ON public.question_bank (created_at DESC);
+
+-- Ensure public.questions has bank_question_id before indexing
+ALTER TABLE public.questions 
+  ADD COLUMN IF NOT EXISTS bank_question_id uuid REFERENCES public.question_bank(bank_question_id) ON DELETE SET NULL;
 
 -- Fast index on questions table for bank_question_id usage lookup
 CREATE INDEX IF NOT EXISTS idx_questions_bank_lookup 
