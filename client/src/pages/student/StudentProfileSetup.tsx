@@ -170,7 +170,11 @@ export const StudentProfileSetup: React.FC = () => {
         current_password: currentPassword || undefined,
         profile_photo_url: profilePhotoUrl || undefined,
       });
-      navigate(nextStep);
+      if (user?.status === 'VERIFIED' || user?.status === 'ACTIVE') {
+        navigate('/student');
+      } else {
+        navigate(nextStep);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to submit profile for verification.');
     } finally {

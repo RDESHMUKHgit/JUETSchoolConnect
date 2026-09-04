@@ -177,10 +177,10 @@ export const StudentDashboard: React.FC = () => {
               <Award size={32} style={{ color: '#9A751A' }} />
               <div>
                 <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>
-                  Congratulations! You Qualify for Jaypee Merit Scholarship Credits
+                  Congratulations! You Qualify for Platform Merit Scholarship Credits
                 </h3>
                 <p style={{ fontSize: '13px', color: '#475569', marginTop: '2px' }}>
-                  Your top score of <strong>{bestAttempt.percentage}%</strong> qualifies you for tuition fee waivers at Jaypee University.
+                  Your top score of <strong>{bestAttempt.percentage}%</strong> qualifies you for institutional tuition fee waivers and academic counseling.
                 </p>
               </div>
             </div>

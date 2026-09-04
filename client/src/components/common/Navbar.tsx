@@ -21,7 +21,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenRegisterSchoolModal }) => 
     { label: 'For Schools', path: '/schools' },
     { label: 'For Teachers', path: '/teachers' },
     { label: 'For Students', path: '/students' },
-    { label: 'About Jaypee University', path: '/jaypee' },
   ];
 
   const handleRegisterClick = () => {
@@ -106,18 +105,18 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenRegisterSchoolModal }) => 
                 lineHeight: 1.1,
               }}
             >
-              JAYPEE
+              SCHOOL CONNECT
             </span>
             <span
               style={{
-                fontSize: '11px',
+                fontSize: '10px',
                 fontWeight: 700,
                 color: '#9A751A',
-                letterSpacing: '0.14em',
+                letterSpacing: '0.12em',
                 textTransform: 'uppercase',
               }}
             >
-              School Connect
+              Academic Intelligence Platform
             </span>
           </div>
         </Link>

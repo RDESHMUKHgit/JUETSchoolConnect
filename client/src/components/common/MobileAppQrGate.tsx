@@ -51,7 +51,7 @@ export const MobileAppQrGate: React.FC<MobileAppQrGateProps> = ({ testTitle, att
         )}
 
         <p style={{ fontSize: '13px', color: '#475569', lineHeight: 1.6, maxWidth: '460px', margin: '0 auto 24px' }}>
-          Your test session has been securely recorded and evaluated. In accordance with platform policy, comprehensive diagnostic analytics, subject percentiles, and step-by-step solutions can only be viewed in the <strong>Jaypee School Connect Mobile App</strong>.
+          Your test session has been securely recorded and evaluated. In accordance with platform policy, comprehensive diagnostic analytics, subject percentiles, and step-by-step solutions can only be viewed in the <strong>School Connect Mobile App</strong>.
         </p>
 
         {/* QR Code Container */}
@@ -68,7 +68,7 @@ export const MobileAppQrGate: React.FC<MobileAppQrGateProps> = ({ testTitle, att
             marginBottom: '24px',
           }}
         >
-          {/* High-res rendered QR code with Jaypee Connect center badge */}
+          {/* High-res rendered QR code with School Connect center badge */}
           <div
             style={{
               width: '200px',
@@ -85,7 +85,7 @@ export const MobileAppQrGate: React.FC<MobileAppQrGateProps> = ({ testTitle, att
           >
             <img
               src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
-                `https://jaypee.ac.in/mobile-app?attempt=${attemptId || 'completed'}&portal=student`
+                `https://schoolconnect.edu.in/mobile-app?attempt=${attemptId || 'completed'}&portal=student`
               )}&color=0F172A`}
               alt="Scan to open Mobile App"
               style={{ width: '180px', height: '180px', borderRadius: '8px', display: 'block' }}
@@ -121,7 +121,7 @@ export const MobileAppQrGate: React.FC<MobileAppQrGateProps> = ({ testTitle, att
         >
           <ShieldCheck size={24} style={{ color: '#059669', flexShrink: 0 }} />
           <div style={{ fontSize: '12px', color: '#334155', lineHeight: 1.5 }}>
-            <strong>How to inspect your scorecard:</strong> Open the Jaypee Mobile App, log in with your student credentials, and navigate to <em>Assessments &gt; Attempt History</em>.
+            <strong>How to inspect your scorecard:</strong> Open the School Connect Mobile App, log in with your student credentials, and navigate to <em>Assessments &gt; Attempt History</em>.
           </div>
         </div>
 

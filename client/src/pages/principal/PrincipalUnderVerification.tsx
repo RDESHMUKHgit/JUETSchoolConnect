@@ -52,7 +52,7 @@ export const PrincipalUnderVerification: React.FC = () => {
         </h2>
 
         <p style={{ fontSize: '15px', color: '#475569', lineHeight: 1.7, marginBottom: '24px' }}>
-          Your school details for <strong style={{ color: '#0F172A' }}>{user?.schoolName || 'Your School'}</strong> have been securely recorded. Jaypee Platform Administration manually inspects every institution registration to guarantee accredited participation.
+          Your school details for <strong style={{ color: '#0F172A' }}>{user?.schoolName || 'Your School'}</strong> have been securely recorded. Central Platform Administration manually inspects every institution registration to guarantee accredited participation.
         </p>
 
         <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: '12px', textAlign: 'left', marginBottom: '28px', border: '1px solid #E2E8F0' }}>

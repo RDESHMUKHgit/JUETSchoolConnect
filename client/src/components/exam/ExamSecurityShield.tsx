@@ -243,7 +243,7 @@ export const ExamSecurityShield: React.FC<ExamSecurityShieldProps> = ({ onViolat
             Full-Screen Exam Mode Required
           </h2>
           <p style={{ maxWidth: '480px', color: '#CBD5E1', fontSize: '14px', lineHeight: 1.6, marginBottom: '24px' }}>
-            To preserve standardized test integrity, the Jaypee Examination Engine requires full-screen operation. Click the button below to resume your assessment.
+            To preserve standardized test integrity, the School Connect Examination Engine requires full-screen operation. Click the button below to resume your assessment.
           </p>
           <Button
             size="lg"

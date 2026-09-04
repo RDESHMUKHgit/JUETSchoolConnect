@@ -25,6 +25,9 @@ export const completeTeacherProfile = async (req: Request, res: Response): Promi
       profile_photo_url,
     } = req.body;
 
+    const isAlreadyVerified = user.status === 'VERIFIED' || user.status === 'ACTIVE';
+    const targetStatus = isAlreadyVerified ? user.status : 'PENDING';
+
     const updateFields: Record<string, any> = {
       phone,
       teachers_emp_id,
@@ -34,7 +37,7 @@ export const completeTeacherProfile = async (req: Request, res: Response): Promi
       specialization,
       gender,
       dob,
-      status: 'PENDING',
+      status: targetStatus,
       updated_at: new Date().toISOString(),
     };
     if (full_name) {
@@ -64,7 +67,13 @@ export const completeTeacherProfile = async (req: Request, res: Response): Promi
       schoolId: user.schoolId,
       schoolName: user.schoolName,
       fullName: updated.full_name,
-      status: 'PENDING',
+      status: targetStatus,
+      phone: updated.phone,
+      department: updated.department,
+      designation: updated.designation,
+      qualification: updated.qualification,
+      specialization: updated.specialization,
+      profile_photo_url: updated.profile_photo_url,
     };
 
     const token = signToken(payload);
@@ -72,9 +81,11 @@ export const completeTeacherProfile = async (req: Request, res: Response): Promi
 
     res.status(200).json({
       success: true,
-      message: 'Profile completed! Your account is now pending approval by your School Principal.',
+      message: isAlreadyVerified
+        ? 'Profile updated successfully!'
+        : 'Profile completed! Your account is now pending approval by your School Principal.',
       user: payload,
-      nextStep: '/teacher/verification',
+      nextStep: isAlreadyVerified ? '/teacher' : '/teacher/verification',
       token,
     });
   } catch (err: any) {

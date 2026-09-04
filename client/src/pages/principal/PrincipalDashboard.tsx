@@ -2,13 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.js';
 import { principalApi } from '../../api/principal.api.js';
+import { schoolApi } from '../../api/school.api.js';
 import { PortalSidebarLayout } from '../../layouts/PortalSidebarLayout.js';
 import { Card } from '../../components/ui/Card.js';
 import { Badge } from '../../components/ui/Badge.js';
 import { Button } from '../../components/ui/Button.js';
 import { Modal } from '../../components/ui/Modal.js';
 import { Input } from '../../components/ui/Input.js';
+import { Select } from '../../components/ui/Select.js';
+import { ImageUpload } from '../../components/ui/ImageUpload.js';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner.js';
+import { getPrincipalNavItems } from '../../utils/navigation.js';
 import {
   School,
   Users,
@@ -22,10 +26,17 @@ import {
   Mail,
   Lock,
   User,
+  Edit,
+  Phone,
+  Save,
+  CheckCircle2,
+  AlertCircle,
+  Globe,
+  MapPin,
 } from 'lucide-react';
 
 export const PrincipalDashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, refreshUser, completePrincipalProfile } = useAuth();
   const navigate = useNavigate();
 
   const [stats, setStats] = useState<any>(null);
@@ -39,6 +50,48 @@ export const PrincipalDashboard: React.FC = () => {
   const [teacherLoading, setTeacherLoading] = useState(false);
   const [teacherMsg, setTeacherMsg] = useState<string | null>(null);
   const [teacherErr, setTeacherErr] = useState<string | null>(null);
+
+  // Edit Profile / Update Information Modal state
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState(user?.profile_photo_url || '');
+  const [principalPhone, setPrincipalPhone] = useState(user?.phone || '');
+  const [designation, setDesignation] = useState<'P' | 'VP'>((user?.designation as any) || 'P');
+  const [officialPhone, setOfficialPhone] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [pin, setPin] = useState('');
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileMsg, setProfileMsg] = useState<string | null>(null);
+  const [profileErr, setProfileErr] = useState<string | null>(null);
+
+  // Load institutional profile
+  useEffect(() => {
+    async function loadSchoolData() {
+      try {
+        if (user?.schoolId) {
+          const sRes = await schoolApi.getSchoolProfile(user.schoolId);
+          if (sRes.success && sRes.school) {
+            setOfficialPhone(sRes.school.official_phone || '');
+            setContactEmail(sRes.school.contact_email || '');
+            setWebsiteUrl(sRes.school.website_url || '');
+            setPin(sRes.school.pin || '');
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching school profile:', err);
+      }
+    }
+    loadSchoolData();
+  }, [user?.schoolId]);
+
+  // Sync state when user or modal changes
+  useEffect(() => {
+    if (user) {
+      setProfilePhotoUrl(user.profile_photo_url || '');
+      setPrincipalPhone(user.phone || '');
+      if (user.designation) setDesignation(user.designation as any);
+    }
+  }, [user, isEditProfileOpen]);
 
   const handleAddTeacherSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,6 +123,44 @@ export const PrincipalDashboard: React.FC = () => {
     }
   };
 
+  const handleUpdateProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setProfileSaving(true);
+      setProfileErr(null);
+      setProfileMsg(null);
+
+      // 1. Update Principal personal profile
+      await completePrincipalProfile({
+        phone: principalPhone,
+        gender: 'MALE',
+        designation,
+        profile_photo_url: profilePhotoUrl || undefined,
+      });
+
+      // 2. Update School institutional details
+      if (user?.schoolId) {
+        await schoolApi.updateSchoolProfile({
+          official_phone: officialPhone,
+          contact_email: contactEmail,
+          website_url: websiteUrl,
+          pin,
+        });
+      }
+
+      await refreshUser();
+      setProfileMsg('Institutional & Principal profile updated successfully!');
+      setTimeout(() => {
+        setIsEditProfileOpen(false);
+        setProfileMsg(null);
+      }, 1000);
+    } catch (err: any) {
+      setProfileErr(err.message || 'Failed to update institutional information.');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
   useEffect(() => {
     async function loadStats() {
       try {
@@ -87,12 +178,7 @@ export const PrincipalDashboard: React.FC = () => {
     loadStats();
   }, []);
 
-  const navItems = [
-    { label: 'Overview', path: '/principal', icon: <School size={18} /> },
-    { label: 'Manage Teachers', path: '/principal/teachers', icon: <Users size={18} />, badge: stats?.pendingTeachers > 0 ? `${stats.pendingTeachers} new` : undefined },
-    { label: 'Class 12 Students', path: '/principal/students', icon: <GraduationCap size={18} />, badge: stats?.pendingStudents > 0 ? `${stats.pendingStudents} pending` : undefined },
-    { label: 'Mock Tests (View Only)', path: '/principal/mock-tests', icon: <BookOpen size={18} /> },
-  ];
+  const navItems = getPrincipalNavItems();
 
   return (
     <PortalSidebarLayout portalTitle={user?.schoolName || 'School Cockpit'} portalRole="PRINCIPAL" navItems={navItems}>
@@ -125,6 +211,54 @@ export const PrincipalDashboard: React.FC = () => {
           <LoadingSpinner message="Loading institutional statistics..." />
         ) : (
           <>
+            {/* Principal & School Institutional Profile Card */}
+            <Card variant="glass" padding="md" style={{ borderLeft: '4px solid #C59B27', backgroundColor: '#FFFFFF' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  {user?.profile_photo_url ? (
+                    <img
+                      src={user.profile_photo_url}
+                      alt={user?.fullName || 'Principal'}
+                      style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #E2E8F0' }}
+                    />
+                  ) : (
+                    <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#FEFCE8', border: '2px solid #FEF08A', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9A751A', fontWeight: 800, fontSize: '22px' }}>
+                      {(user?.fullName || 'P').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                        {user?.fullName || 'School Principal'}
+                      </h2>
+                      <Badge variant="gold">{user?.designation === 'VP' ? 'Vice Principal' : 'Principal'}</Badge>
+                    </div>
+                    <p style={{ margin: '3px 0 0', fontSize: '13px', color: '#475569' }}>
+                      {user?.schoolName || 'Institution'} • Accredited School Connect Member
+                    </p>
+                    <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginTop: '6px', fontSize: '12px', color: '#64748B' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Mail size={13} /> {user?.email}
+                      </span>
+                      {user?.phone && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Phone size={13} /> {user.phone}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<Edit size={14} />}
+                  onClick={() => setIsEditProfileOpen(true)}
+                >
+                  Edit Profile
+                </Button>
+              </div>
+            </Card>
+
             {/* Live Metrics Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
               <Card
@@ -190,7 +324,7 @@ export const PrincipalDashboard: React.FC = () => {
                   Verified
                 </div>
                 <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>
-                  Accredited by Jaypee Connect
+                  Accredited School Connect Institution
                 </div>
               </Card>
             </div>
@@ -225,6 +359,129 @@ export const PrincipalDashboard: React.FC = () => {
         )}
       </div>
 
+      {/* Update School & Principal Information Modal */}
+      <Modal
+        isOpen={isEditProfileOpen}
+        onClose={() => {
+          setIsEditProfileOpen(false);
+          setProfileErr(null);
+          setProfileMsg(null);
+        }}
+        title="Update School & Principal Information"
+        maxWidth="580px"
+      >
+        {profileMsg && (
+          <div style={{ padding: '12px 16px', borderRadius: '8px', background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#047857', fontSize: '13px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle2 size={16} />
+            <span>{profileMsg}</span>
+          </div>
+        )}
+
+        {profileErr && (
+          <div style={{ padding: '12px 16px', borderRadius: '8px', background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', fontSize: '13px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={16} />
+            <span>{profileErr}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleUpdateProfileSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <ImageUpload
+            bucket="profile-images"
+            value={profilePhotoUrl}
+            onChange={(url) => setProfilePhotoUrl(url)}
+            label="Principal Profile Photo (Max 300 KB)"
+            helperText="Upload official headshot photo (Max 300 KB)."
+            aspectRatio="square"
+            maxWidth="130px"
+          />
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <Input
+              label="Principal Phone Number *"
+              type="tel"
+              value={principalPhone}
+              onChange={(e) => setPrincipalPhone(e.target.value)}
+              placeholder="e.g. +91 98765 43210"
+              required
+            />
+            <Select
+              label="Designation *"
+              value={designation}
+              onChange={(e) => setDesignation(e.target.value as any)}
+              options={[
+                { value: 'P', label: 'Principal' },
+                { value: 'VP', label: 'Vice Principal' },
+              ]}
+              required
+            />
+          </div>
+
+          <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '12px', marginTop: '4px' }}>
+            <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', marginBottom: '12px' }}>
+              Institutional Contact Details
+            </h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+              <Input
+                label="School Official Phone"
+                type="tel"
+                value={officialPhone}
+                onChange={(e) => setOfficialPhone(e.target.value)}
+                placeholder="e.g. 0120-2400973"
+                icon={<Phone size={14} />}
+              />
+              <Input
+                label="School Official Email"
+                type="email"
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+                placeholder="e.g. principal@school.edu.in"
+                icon={<Mail size={14} />}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <Input
+                label="Official Website URL"
+                type="url"
+                value={websiteUrl}
+                onChange={(e) => setWebsiteUrl(e.target.value)}
+                placeholder="e.g. https://www.dpsschool.edu.in"
+                icon={<Globe size={14} />}
+              />
+              <Input
+                label="Postal PIN Code"
+                type="text"
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
+                placeholder="e.g. 201304"
+                icon={<MapPin size={14} />}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="md"
+              onClick={() => setIsEditProfileOpen(false)}
+              disabled={profileSaving}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="gold"
+              size="md"
+              icon={<Save size={16} />}
+              loading={profileSaving}
+            >
+              Save Changes
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
       {/* Add Teacher Modal in Principal Cockpit */}
       <Modal
         isOpen={isAddTeacherOpen}
@@ -252,18 +509,18 @@ export const PrincipalDashboard: React.FC = () => {
           <Input
             label="Teacher Full Name"
             type="text"
-            placeholder="Dr. Sangeeta Sharma"
+            placeholder="e.g. Dr. Priya Sharma"
             value={teacherFullName}
             onChange={(e) => setTeacherFullName(e.target.value)}
             icon={<User size={16} />}
-            helperText="Official name of the faculty member."
+            helperText="The teacher's official name on faculty records."
             required
           />
 
           <Input
-            label="Official Teacher Email"
+            label="Teacher Email Address"
             type="email"
-            placeholder="sangeeta.physics@school.edu.in"
+            placeholder="e.g. priya.sharma@school.edu.in"
             value={teacherEmail}
             onChange={(e) => setTeacherEmail(e.target.value)}
             icon={<Mail size={16} />}

@@ -40,28 +40,12 @@ export const Footer: React.FC = () => {
                 <GraduationCap size={20} />
               </div>
               <span style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
-                JAYPEE SCHOOL CONNECT
+                SCHOOL CONNECT
               </span>
             </div>
             <p style={{ fontSize: '14px', color: '#475569', lineHeight: 1.6 }}>
-              The premier School–Student Intelligence Platform bridging high schools, Class 12 aspirants, and Jaypee University through predictive academic assessments and deep performance analytics.
+              The premier School–Student Intelligence Platform bridging high schools, Class 12 aspirants, and academic excellence through predictive standardized assessments and deep performance analytics.
             </p>
-            <a
-              href="https://www.jiit.ac.in"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '13px',
-                color: '#9A751A',
-                fontWeight: 600,
-                marginTop: '4px',
-              }}
-            >
-              Jaypee Institute of Information Technology <ExternalLink size={14} />
-            </a>
           </div>
 
           {/* Column 2: Platform Links */}
@@ -74,7 +58,6 @@ export const Footer: React.FC = () => {
             <Link to="/schools" style={{ fontSize: '14px', color: '#475569' }}>For Schools & Principals</Link>
             <Link to="/teachers" style={{ fontSize: '14px', color: '#475569' }}>For Class 12 Teachers</Link>
             <Link to="/students" style={{ fontSize: '14px', color: '#475569' }}>For Class 12 Students</Link>
-            <Link to="/jaypee" style={{ fontSize: '14px', color: '#475569' }}>Jaypee University Legacy</Link>
           </div>
 
           {/* Column 3: Portals & Access */}
@@ -97,11 +80,11 @@ export const Footer: React.FC = () => {
             </h4>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', color: '#475569', fontSize: '13px' }}>
               <MapPin size={18} style={{ color: '#9A751A', flexShrink: 0, marginTop: '2px' }} />
-              <span>A-10, Sector 62, Noida, Uttar Pradesh 201309, India</span>
+              <span>National Institutional Intelligence Hub, New Delhi / Noida, India</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#475569', fontSize: '13px' }}>
               <Mail size={16} style={{ color: '#9A751A', flexShrink: 0 }} />
-              <span>schoolconnect@jaypee.edu.in</span>
+              <span>support@schoolconnect.edu.in</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#475569', fontSize: '13px' }}>
               <Phone size={16} style={{ color: '#9A751A', flexShrink: 0 }} />
@@ -125,7 +108,7 @@ export const Footer: React.FC = () => {
           }}
         >
           <div>
-            © {new Date().getFullYear()} Jaypee School Connect. Built for Indian High School Intelligence.
+            © {new Date().getFullYear()} School Connect. Built for Indian High School Intelligence.
           </div>
           <div style={{ display: 'flex', gap: '20px' }}>
             <span>Privacy Policy</span>

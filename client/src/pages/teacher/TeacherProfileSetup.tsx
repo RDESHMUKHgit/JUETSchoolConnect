@@ -39,7 +39,11 @@ export const TeacherProfileSetup: React.FC = () => {
         gender,
         profile_photo_url: profilePhotoUrl || undefined,
       });
-      navigate(nextStep);
+      if (user?.status === 'VERIFIED' || user?.status === 'ACTIVE') {
+        navigate('/teacher');
+      } else {
+        navigate(nextStep);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to update profile.');
     } finally {

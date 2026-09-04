@@ -417,7 +417,7 @@ export const submitTestAttempt = async (req: Request, res: Response): Promise<vo
 
     res.status(200).json({
       success: true,
-      message: 'Test submitted successfully! Complete result and diagnostic analytics can only be viewed in the Jaypee Mobile App.',
+      message: 'Test submitted successfully! Complete result and diagnostic analytics can only be viewed in the School Connect Mobile App.',
       result: {
         attemptId: attempt.attempt_id,
         scoreObtained,

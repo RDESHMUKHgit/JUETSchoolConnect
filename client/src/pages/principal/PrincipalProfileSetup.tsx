@@ -30,7 +30,11 @@ export const PrincipalProfileSetup: React.FC = () => {
         designation,
         profile_photo_url: profilePhotoUrl || undefined,
       });
-      navigate(nextStep);
+      if (user?.status === 'VERIFIED' || user?.status === 'ACTIVE') {
+        navigate('/principal');
+      } else {
+        navigate(nextStep);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to save profile.');
     } finally {

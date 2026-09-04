@@ -185,7 +185,7 @@ export const AdminPortal: React.FC = () => {
               Platform Administration
             </h2>
             <p style={{ fontSize: '13px', color: '#475569', marginTop: '4px' }}>
-              Restricted system management for Jaypee University authorities
+              Restricted system management for authorized administrators
             </p>
           </div>
 
@@ -209,7 +209,7 @@ export const AdminPortal: React.FC = () => {
             <Input
               label="Admin Email Address"
               type="email"
-              placeholder="admin@jaypee.edu"
+              placeholder="admin@schoolconnect.edu.in"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               icon={<Mail size={18} />}
@@ -244,7 +244,7 @@ export const AdminPortal: React.FC = () => {
           </form>
 
           <p style={{ fontSize: '12px', color: '#64748B', textAlign: 'center', marginTop: '24px' }}>
-            Access is monitored and logged under Jaypee Information Security Standards.
+            Access is monitored and logged under Platform Information Security Standards.
           </p>
         </Card>
       </div>
@@ -282,7 +282,7 @@ export const AdminPortal: React.FC = () => {
             <Shield size={20} />
           </div>
           <div>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: '#0F172A' }}>JAYPEE PLATFORM ADMIN</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: '#0F172A' }}>SCHOOL CONNECT PLATFORM ADMIN</div>
             <div style={{ fontSize: '11px', color: '#E11D48', fontWeight: 700 }}>MASTER OPERATIONS</div>
           </div>
         </div>

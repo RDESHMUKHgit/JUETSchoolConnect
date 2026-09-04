@@ -24,6 +24,10 @@ export interface User {
   profile_photo_url?: string | null;
   designation?: string | null;
   department?: string | null;
+  teachers_emp_id?: string | null;
+  specialization?: string | null;
+  qualification?: string | null;
+  gender?: string | null;
   apaar?: string | null;
   admission_no?: string | null;
   class?: number | null;

@@ -52,7 +52,7 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/api/health', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'ok',
-    service: 'Jaypee School Connect Backend API',
+    service: 'School Connect Backend API',
     timestamp: new Date().toISOString(),
     environment: ENV.NODE_ENV,
   });
@@ -66,7 +66,7 @@ app.use(errorHandler);
 
 const server = app.listen(ENV.PORT, () => {
   console.log(`========================================================`);
-  console.log(` Jaypee School Connect Server Running on Port ${ENV.PORT}`);
+  console.log(` School Connect Server Running on Port ${ENV.PORT}`);
   console.log(` Client URL Allowed: ${ENV.CLIENT_URL}`);
   console.log(` Healthcheck: http://localhost:${ENV.PORT}/api/health`);
   console.log(`========================================================`);

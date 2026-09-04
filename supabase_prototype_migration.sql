@@ -1,5 +1,5 @@
 -- =====================================================================
--- JAYPEE SCHOOL CONNECT — PROTOTYPE PRODUCTION FIXES & EXTENSIONS
+-- SCHOOL CONNECT — PRODUCTION SCHEMA MIGRATIONS & EXTENSIONS
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
@@ -72,6 +72,15 @@ USING (bucket_id = 'question-images');
 -- ---------------------------------------------------------------------
 -- 1. ENFORCE STRICT SINGLE ATTEMPT PER STUDENT PER MOCK TEST (CRITICAL)
 -- ---------------------------------------------------------------------
+
+-- Clean up existing duplicate attempts (if any) prior to creating the unique index,
+-- retaining the highest-scoring (or most recent) attempt per student per mock test.
+DELETE FROM public.test_attempts
+WHERE attempt_id NOT IN (
+  SELECT DISTINCT ON (student_id, mock_test_id) attempt_id
+  FROM public.test_attempts
+  ORDER BY student_id, mock_test_id, score DESC, created_at DESC
+);
 
 -- Create unique index preventing duplicate test attempts
 CREATE UNIQUE INDEX IF NOT EXISTS idx_single_attempt_per_student_mock

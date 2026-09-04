@@ -101,6 +101,9 @@ export const completePrincipalProfile = async (req: Request, res: Response): Pro
       return;
     }
 
+    const isAlreadyVerified = user.status === 'VERIFIED' || user.status === 'ACTIVE';
+    const targetStatus = isAlreadyVerified ? user.status : 'COMPLETED';
+
     const payload: JwtUserPayload = {
       userId: user.userId,
       authId: user.authId,
@@ -108,8 +111,11 @@ export const completePrincipalProfile = async (req: Request, res: Response): Pro
       role: user.role,
       schoolId: user.schoolId,
       schoolName: user.schoolName,
-      status: 'COMPLETED',
+      status: targetStatus,
       fullName: updated.full_name,
+      phone: updated.phone,
+      designation: updated.designation,
+      profile_photo_url: updated.profile_photo_url,
     };
 
     const token = signToken(payload);
@@ -117,9 +123,11 @@ export const completePrincipalProfile = async (req: Request, res: Response): Pro
 
     res.status(200).json({
       success: true,
-      message: 'Profile details saved. Now please provide your school details.',
+      message: isAlreadyVerified
+        ? 'Profile details updated successfully!'
+        : 'Profile details saved. Now please provide your school details.',
       user: payload,
-      nextStep: '/principal/school-setup',
+      nextStep: isAlreadyVerified ? '/principal' : '/principal/school-setup',
       token,
     });
   } catch (err: any) {
@@ -212,7 +220,7 @@ export const submitSchoolDetails = async (req: Request, res: Response): Promise<
 
     res.status(201).json({
       success: true,
-      message: 'School registration submitted successfully! Your account is now under verification by Jaypee Platform Administration.',
+      message: 'School registration submitted successfully! Your account is now under verification by Central Platform Administration.',
       user: payload,
       nextStep: '/principal/verification',
       token,

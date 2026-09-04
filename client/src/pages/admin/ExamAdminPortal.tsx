@@ -194,7 +194,7 @@ export const ExamAdminPortal: React.FC = () => {
   ];
 
   return (
-    <PortalSidebarLayout portalTitle="Jaypee Examination Authority" portalRole="ADMIN" navItems={navItems}>
+    <PortalSidebarLayout portalTitle="Central Examination Authority" portalRole="ADMIN" navItems={navItems}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         {/* Top Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>

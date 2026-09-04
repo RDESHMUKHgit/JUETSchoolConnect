@@ -56,7 +56,7 @@ export const Home: React.FC = () => {
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 16px', borderRadius: '9999px', background: '#FEFCE8', border: '1px solid #FEF08A', marginBottom: '24px' }}>
             <Sparkles size={16} style={{ color: '#9A751A' }} />
             <span style={{ fontSize: '13px', fontWeight: 700, color: '#9A751A', letterSpacing: '0.04em' }}>
-              POWERED BY JAYPEE UNIVERSITY INTELLECTUAL CAPITAL
+              POWERED BY STANDARDIZED ACADEMIC INTELLIGENCE
             </span>
           </div>
 
@@ -155,7 +155,7 @@ export const Home: React.FC = () => {
           <div style={{ textAlign: 'center', maxWidth: '720px', margin: '0 auto 50px' }}>
             <Badge variant="gold" size="sm">THE CORE ENGINE</Badge>
             <h2 style={{ fontSize: '32px', marginTop: '12px', marginBottom: '14px', color: '#0F172A' }}>
-              How Jaypee School Connect Powers Intelligence
+              How School Connect Powers Intelligence
             </h2>
             <p style={{ color: '#475569', fontSize: '16px' }}>
               We do not just host assessments. Every student response flows through an intelligence engine to diagnose learning gaps, calibrate difficulty, and recommend precision revisions.
@@ -173,7 +173,7 @@ export const Home: React.FC = () => {
               {
                 step: '01',
                 title: 'School Verification',
-                desc: 'Principals register high schools; credentials verified by Jaypee Platform Administration.',
+                desc: 'Principals register high schools; credentials verified by Central Platform Administration.',
                 icon: <School size={22} style={{ color: '#9A751A' }} />,
               },
               {
@@ -296,10 +296,10 @@ export const Home: React.FC = () => {
                   Class 12 Student
                 </h3>
                 <p style={{ fontSize: '14px', color: '#475569', marginBottom: '20px', lineHeight: 1.6 }}>
-                  Competitive preparation engine. Attempt standardized Physics, Chemistry, and Mathematics mock tests, receive instantaneous evaluation, and qualify for Jaypee University scholarship slabs.
+                  Competitive preparation engine. Attempt standardized Physics, Chemistry, and Mathematics mock tests, receive instantaneous evaluation, and qualify for merit scholarship slabs.
                 </p>
                 <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
-                  {['Interactive Test Taking Engine', 'Real-time Timer & Question Palette', 'Per-Question Detailed Reviews', 'Subject-wise Radars & Weakness Alerts', 'Jaypee Scholarship Tracker'].map((item) => (
+                  {['Interactive Test Taking Engine', 'Real-time Timer & Question Palette', 'Per-Question Detailed Reviews', 'Subject-wise Radars & Weakness Alerts', 'Merit Scholarship Tracker'].map((item) => (
                     <li key={item} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#334155' }}>
                       <CheckCircle2 size={16} style={{ color: '#059669', flexShrink: 0 }} />
                       <span>{item}</span>
@@ -483,7 +483,7 @@ export const Home: React.FC = () => {
                     <div style={{ fontSize: '24px', fontWeight: 800, color: '#059669', marginTop: '4px' }}>78.4%</div>
                   </div>
                   <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
-                    <div style={{ fontSize: '12px', color: '#64748B' }}>Jaypee Scholarship Qualifiers</div>
+                    <div style={{ fontSize: '12px', color: '#64748B' }}>Merit Scholarship Qualifiers</div>
                     <div style={{ fontSize: '24px', fontWeight: 800, color: '#9A751A', marginTop: '4px' }}>64 Students</div>
                   </div>
                 </div>
@@ -523,27 +523,27 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* 5. ABOUT JAYPEE UNIVERSITY */}
+      {/* 5. ABOUT PLATFORM EXCELLENCE */}
       <section style={{ padding: '80px 0', borderBottom: '1px solid #E2E8F0' }}>
         <div className="container">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '48px', alignItems: 'center' }}>
             <div>
-              <Badge variant="gold" size="sm">LEGACY OF EXCELLENCE</Badge>
+              <Badge variant="gold" size="sm">ACADEMIC STANDARDS</Badge>
               <h2 style={{ fontSize: '34px', marginTop: '14px', marginBottom: '18px', color: '#0F172A' }}>
-                Backed by Jaypee University & JIIT
+                Standardized National Curriculum & Analytics
               </h2>
               <p style={{ color: '#475569', fontSize: '16px', lineHeight: 1.7, marginBottom: '20px' }}>
-                Jaypee Institute of Information Technology (JIIT), Noida, established in 2001, has consistently ranked amongst top engineering universities in India. Jaypee School Connect extends this pedagogical expertise directly to affiliated high schools.
+                School Connect equips affiliated institutions across India with high-yield assessment instruments, automated scoring models, and question-level timing telemetry calibrated specifically for competitive examination success.
               </p>
               <p style={{ color: '#475569', fontSize: '15px', lineHeight: 1.7, marginBottom: '28px' }}>
-                Students excelling in platform mock tests earn direct merit scholarship credits, admissions counseling, and invitations to Jaypee technical mentorship seminars.
+                Students excelling in platform mock tests earn direct merit scholarship credits, admissions counseling, and invitations to national technical mentorship seminars.
               </p>
               <Button
                 variant="outline"
                 icon={<ExternalLink size={16} />}
-                onClick={() => navigate('/jaypee')}
+                onClick={() => navigate('/about')}
               >
-                Learn About Jaypee Programs
+                Learn More About the Platform
               </Button>
             </div>
 
@@ -583,7 +583,7 @@ export const Home: React.FC = () => {
             Bring Your School on the Platform
           </h2>
           <p style={{ fontSize: '17px', color: '#475569', marginBottom: '32px' }}>
-            Join accredited CBSE and ICSE institutions already using Jaypee School Connect to benchmark Class 12 performance.
+            Join accredited CBSE and ICSE institutions already using School Connect to benchmark Class 12 performance.
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'center' }}>
             <Button variant="gold" size="lg" icon={<School size={18} />} onClick={handleRegisterSchool}>

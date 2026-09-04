@@ -7,6 +7,10 @@ import { PortalSidebarLayout } from '../../layouts/PortalSidebarLayout.js';
 import { Card } from '../../components/ui/Card.js';
 import { Badge } from '../../components/ui/Badge.js';
 import { Button } from '../../components/ui/Button.js';
+import { Modal } from '../../components/ui/Modal.js';
+import { Input } from '../../components/ui/Input.js';
+import { Select } from '../../components/ui/Select.js';
+import { ImageUpload } from '../../components/ui/ImageUpload.js';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner.js';
 import { getTeacherNavItems } from '../../utils/navigation.js';
 import {
@@ -22,16 +26,77 @@ import {
   Edit,
   Mail,
   Phone,
+  CheckCircle2,
+  AlertCircle,
+  Save,
 } from 'lucide-react';
 
 export const TeacherDashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
 
   const [students, setStudents] = useState<any[]>([]);
   const [pendingStudents, setPendingStudents] = useState<any[]>([]);
   const [mockTests, setMockTests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Edit Profile Modal state
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState(user?.profile_photo_url || '');
+  const [fullName, setFullName] = useState(user?.fullName || '');
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [empId, setEmpId] = useState(user?.teachers_emp_id || '');
+  const [department, setDepartment] = useState(user?.department || 'Science');
+  const [specialization, setSpecialization] = useState(user?.specialization || 'Physics');
+  const [qualification, setQualification] = useState(user?.qualification || 'M.Sc., B.Ed.');
+  const [gender, setGender] = useState(user?.gender || 'MALE');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileMsg, setProfileMsg] = useState<string | null>(null);
+  const [profileErr, setProfileErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      setProfilePhotoUrl(user.profile_photo_url || '');
+      setFullName(user.fullName || '');
+      setPhone(user.phone || '');
+      setEmpId(user.teachers_emp_id || '');
+      setDepartment(user.department || 'Science');
+      setSpecialization(user.specialization || 'Physics');
+      setQualification(user.qualification || 'M.Sc., B.Ed.');
+      setGender(user.gender || 'MALE');
+    }
+  }, [user, isEditProfileOpen]);
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSavingProfile(true);
+      setProfileErr(null);
+      setProfileMsg(null);
+      const res = await teacherApi.completeProfile({
+        full_name: fullName,
+        phone,
+        teachers_emp_id: empId,
+        department,
+        specialization,
+        qualification,
+        gender,
+        profile_photo_url: profilePhotoUrl || undefined,
+      });
+      if (res.success) {
+        await refreshUser();
+        setProfileMsg('Profile information updated successfully!');
+        setTimeout(() => {
+          setIsEditProfileOpen(false);
+          setProfileMsg(null);
+        }, 1000);
+      }
+    } catch (err: any) {
+      setProfileErr(err.message || 'Failed to update profile.');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   useEffect(() => {
     async function loadData() {
@@ -127,7 +192,7 @@ export const TeacherDashboard: React.FC = () => {
                   variant="secondary"
                   size="sm"
                   icon={<Edit size={14} />}
-                  onClick={() => navigate('/teacher/profile-setup')}
+                  onClick={() => setIsEditProfileOpen(true)}
                 >
                   Edit Profile
                 </Button>
@@ -245,6 +310,136 @@ export const TeacherDashboard: React.FC = () => {
           </>
         )}
       </div>
+
+      {/* Update Faculty Information Modal */}
+      <Modal
+        isOpen={isEditProfileOpen}
+        onClose={() => {
+          setIsEditProfileOpen(false);
+          setProfileErr(null);
+          setProfileMsg(null);
+        }}
+        title="Update Faculty Profile Information"
+        maxWidth="560px"
+      >
+        {profileMsg && (
+          <div style={{ padding: '12px 16px', borderRadius: '8px', background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#047857', fontSize: '13px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle2 size={16} />
+            <span>{profileMsg}</span>
+          </div>
+        )}
+
+        {profileErr && (
+          <div style={{ padding: '12px 16px', borderRadius: '8px', background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', fontSize: '13px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={16} />
+            <span>{profileErr}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <ImageUpload
+            bucket="profile-images"
+            value={profilePhotoUrl}
+            onChange={(url) => setProfilePhotoUrl(url)}
+            label="Faculty Profile Photo (Max 300 KB)"
+            helperText="Upload a professional passport or faculty badge photo (Max 300 KB)."
+            aspectRatio="square"
+            maxWidth="130px"
+          />
+
+          <Input
+            label="Full Name *"
+            type="text"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            required
+          />
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <Input
+              label="Contact Phone Number *"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              required
+            />
+            <Input
+              label="Teacher / Employee ID"
+              type="text"
+              value={empId}
+              onChange={(e) => setEmpId(e.target.value)}
+              placeholder="e.g. EMP-2026-042"
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <Select
+              label="Academic Department *"
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+              options={[
+                { value: 'Science', label: 'Science / PCM' },
+                { value: 'Physics', label: 'Physics' },
+                { value: 'Chemistry', label: 'Chemistry' },
+                { value: 'Mathematics', label: 'Mathematics' },
+                { value: 'Computer Science', label: 'Computer Science' },
+                { value: 'Commerce', label: 'Commerce' },
+                { value: 'Humanities', label: 'Humanities' },
+              ]}
+              required
+            />
+            <Select
+              label="Gender *"
+              value={gender}
+              onChange={(e) => setGender(e.target.value)}
+              options={[
+                { value: 'MALE', label: 'Male' },
+                { value: 'FEMALE', label: 'Female' },
+                { value: 'OTHER', label: 'Other' },
+              ]}
+              required
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <Input
+              label="Specialization / Subject Area"
+              type="text"
+              value={specialization}
+              onChange={(e) => setSpecialization(e.target.value)}
+              placeholder="e.g. Organic Chemistry, Calculus"
+            />
+            <Input
+              label="Highest Qualification"
+              type="text"
+              value={qualification}
+              onChange={(e) => setQualification(e.target.value)}
+              placeholder="e.g. M.Sc., B.Ed., Ph.D."
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="md"
+              onClick={() => setIsEditProfileOpen(false)}
+              disabled={savingProfile}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="gold"
+              size="md"
+              icon={<Save size={16} />}
+              loading={savingProfile}
+            >
+              Save Changes
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </PortalSidebarLayout>
   );
 };
