@@ -10,7 +10,8 @@
     "seed:admin": "ts-node src/scripts/seed-admin.ts",
     "seed:exam-admin": "ts-node src/scripts/seed-exam-admin.ts",
     "seed:mock-tests": "ts-node src/scripts/seed-mock-tests.ts",
-    "seed:question-bank": "tsx src/scripts/seed-question-bank.ts"
+    "seed:question-bank": "tsx src/scripts/seed-question-bank.ts",
+    "seed:dummy": "tsx src/scripts/seed-dummy-data.ts"
   },
   "keywords": [
     "express",

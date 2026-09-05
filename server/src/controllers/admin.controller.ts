@@ -331,18 +331,32 @@ export const getPlatformMetrics = async (_req: Request, res: Response): Promise<
  */
 export const getDetailedPlatformMetrics = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const [schoolsRes, principalsRes, teachersRes, studentsRes, testsRes] = await Promise.all([
+    const [schoolsRes, principalsRes, teachersRes, testsRes] = await Promise.all([
       supabase.from('school').select('*').order('name'),
       supabase.from('principal').select('*, school:school_id(name, city, state)').order('created_at', { ascending: false }),
       supabase.from('teachers').select('*, school:school_id(name, city, state)').order('created_at', { ascending: false }),
-      supabase.from('student').select('*, school:school_id(name), teachers:teacher_id(full_name)').order('created_at', { ascending: false }),
       supabase.from('mock_test').select('*, subject:subject_id(name)'),
     ]);
+
+    // Paginate to retrieve all students beyond default 1000 limit
+    let students: any[] = [];
+    let from = 0;
+    const step = 1000;
+    while (true) {
+      const { data: sBatch, error: sErr } = await supabase
+        .from('student')
+        .select('*, school:school_id(name), teachers:teacher_id(full_name)')
+        .order('created_at', { ascending: false })
+        .range(from, from + step - 1);
+      if (sErr || !sBatch || sBatch.length === 0) break;
+      students = students.concat(sBatch);
+      if (sBatch.length < step) break;
+      from += step;
+    }
 
     const schools = schoolsRes.data || [];
     const principals = principalsRes.data || [];
     const teachers = teachersRes.data || [];
-    const students = studentsRes.data || [];
     const tests = testsRes.data || [];
 
     // 1. Principals Status Grouping

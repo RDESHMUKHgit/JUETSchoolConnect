@@ -1,7 +1,11 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-const outDir = path.resolve('dummy data');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const outDir = __dirname;
 if (!fs.existsSync(outDir)) {
   fs.mkdirSync(outDir, { recursive: true });
 }
@@ -512,11 +516,46 @@ sql00 += `\nON CONFLICT DO NOTHING;\n`;
 fs.writeFileSync(path.join(outDir, '00_auth_users_and_passwords.sql'), sql00, 'utf-8');
 console.log('✅ Generated 00_auth_users_and_passwords.sql');
 
+// Also generate chunked Auth SQL scripts (< 500 KB each) so they can be run in Supabase SQL Editor without 1MB payload limits:
+function buildAuthChunkSql(users, title) {
+  let chunk = `-- =====================================================================\n`;
+  chunk += `-- ${title} (${users.length} accounts, Password: '1234567')\n`;
+  chunk += `-- =====================================================================\n`;
+  chunk += `CREATE EXTENSION IF NOT EXISTS pgcrypto;\n\n`;
+  chunk += `INSERT INTO auth.users (\n  instance_id, id, aud, role, email, encrypted_password,\n  email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at\n)\nVALUES\n`;
+  chunk += users.map(u => `  ('00000000-0000-0000-0000-000000000000', ${sqlStr(u.id)}, 'authenticated', 'authenticated', ${sqlStr(u.email)}, extensions.crypt('1234567', extensions.gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}'::jsonb, jsonb_build_object('role', ${sqlStr(u.role)}, 'full_name', ${sqlStr(u.full_name)}), now(), now())`).join(',\n');
+  chunk += `\nON CONFLICT (id) DO UPDATE SET\n  encrypted_password = EXCLUDED.encrypted_password,\n  email_confirmed_at = EXCLUDED.email_confirmed_at;\n\n`;
+  chunk += `INSERT INTO auth.identities (\n  id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at\n)\nVALUES\n`;
+  chunk += users.map(u => `  (${sqlStr(u.id)}, ${sqlStr(u.id)}, jsonb_build_object('sub', ${sqlStr(u.id)}, 'email', ${sqlStr(u.email)}), 'email', ${sqlStr(u.id)}, now(), now(), now())`).join(',\n');
+  chunk += `\nON CONFLICT DO NOTHING;\n`;
+  return chunk;
+}
+
+const principalAuthUsers = allAuthUsers.filter(u => u.role === 'PRINCIPAL');
+const teacherAuthUsers = allAuthUsers.filter(u => u.role === 'TEACHER');
+const studentAuthUsers = allAuthUsers.filter(u => u.role === 'STUDENT');
+
+fs.writeFileSync(path.join(outDir, '00a_principals_auth.sql'), buildAuthChunkSql(principalAuthUsers, '00a. 112 PRINCIPALS AUTH ACCOUNTS'), 'utf-8');
+fs.writeFileSync(path.join(outDir, '00b_teachers_auth.sql'), buildAuthChunkSql(teacherAuthUsers, '00b. 493 TEACHERS AUTH ACCOUNTS'), 'utf-8');
+fs.writeFileSync(path.join(outDir, '00c_students_auth_part1.sql'), buildAuthChunkSql(studentAuthUsers.slice(0, 710), '00c. STUDENTS AUTH ACCOUNTS (Part 1/3, 1-710)'), 'utf-8');
+fs.writeFileSync(path.join(outDir, '00d_students_auth_part2.sql'), buildAuthChunkSql(studentAuthUsers.slice(710, 1420), '00d. STUDENTS AUTH ACCOUNTS (Part 2/3, 711-1420)'), 'utf-8');
+fs.writeFileSync(path.join(outDir, '00e_students_auth_part3.sql'), buildAuthChunkSql(studentAuthUsers.slice(1420), '00e. STUDENTS AUTH ACCOUNTS (Part 3/3, 1421-2130)'), 'utf-8');
+
+const sql00f = `-- =====================================================================
+-- 00f. LINK AUTH IDS FOR ALL DUMMY USERS IN PUBLIC TABLES
+-- =====================================================================
+UPDATE public.principal p SET auth_id = p.principal_id WHERE auth_id IS NULL;
+UPDATE public.teachers t SET auth_id = t.teacher_id WHERE auth_id IS NULL;
+UPDATE public.student s SET auth_id = s.student_id WHERE auth_id IS NULL;
+`;
+fs.writeFileSync(path.join(outDir, '00f_link_auth_ids.sql'), sql00f, 'utf-8');
+console.log('✅ Generated chunked auth scripts: 00a, 00b, 00c, 00d, 00e, 00f');
+
 // -------------------------------------------------------------
 // 5. 250 QUESTIONS IN QUESTION BANK (ALL SUBJECTS & EXAMS)
 // -------------------------------------------------------------
 // Read existing 75 questions from client/jee_paper.json
-const jeePaperPath = path.resolve('client/jee_paper.json');
+const jeePaperPath = path.resolve(__dirname, '../client/jee_paper.json');
 const rawJee = JSON.parse(fs.readFileSync(jeePaperPath, 'utf-8'));
 console.log(`Loaded ${rawJee.length} base questions from jee_paper.json`);
 
@@ -972,3 +1011,18 @@ fs.writeFileSync(path.join(outDir, 'README.md'), readmeContent, 'utf-8');
 console.log('✅ Generated README.md');
 
 console.log('--- All Seed Scripts Successfully Generated in dummy data/ ---');
+
+export {
+  SUBJECTS,
+  EXAMS,
+  schools,
+  principals,
+  teachers,
+  students,
+  allAuthUsers,
+  questionsBank,
+  mockTests,
+  mockTestSubjects,
+  mockTestQuestions,
+  attempts
+};
