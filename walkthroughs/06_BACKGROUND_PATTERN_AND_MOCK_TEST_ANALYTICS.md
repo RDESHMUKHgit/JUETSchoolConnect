@@ -47,7 +47,7 @@ Phase 6 polished the visual ambiance of the platform by integrating an elegant t
       background-color: transparent;
     }
     ```
-- **Translucent Portals Layering**: Updated `PortalSidebarLayout.tsx` with translucent sidebars and headers (`rgba(255, 255, 255, 0.95)` with `backdrop-filter: blur(12px)`), allowing the subtle ambient pattern to tile behind public pages and all portal views.
+- **Translucent Portals & Hero Layering**: Updated `PortalSidebarLayout.tsx` with translucent sidebars and headers (`rgba(255, 255, 255, 0.95)` with `backdrop-filter: blur(12px)`), and set `.gradient-hero-bg` to `background: transparent;` so the ambient pattern seamlessly flows under the hero section and throughout the portal.
 
 ### B. Super Admin Mock Test Platform Analytics & Candidate Roster
 - **Backend Analytics Endpoint (`GET /api/admin/mock-tests/:testId/analytics`)**:
