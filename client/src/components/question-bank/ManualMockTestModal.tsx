@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal.js';
 import { Button } from '../ui/Button.js';
 import { Input } from '../ui/Input.js';
@@ -38,6 +38,30 @@ export const ManualMockTestModal: React.FC<ManualMockTestModalProps> = ({
     0
   );
   const [maxMarks, setMaxMarks] = useState(totalCalculatedMarks || 120);
+
+  // Automatically detect and select subjects based on chosen questions
+  useEffect(() => {
+    if (selectedQuestions && selectedQuestions.length > 0) {
+      const detected = Array.from(
+        new Set(
+          selectedQuestions
+            .map((q) => q.subject_name || q.subject?.name)
+            .filter(Boolean)
+        )
+      ) as string[];
+      if (detected.length > 0) {
+        setSelectedSubjects(detected);
+      }
+    }
+  }, [selectedQuestions]);
+
+  // Keep marks in sync when questions are selected
+  useEffect(() => {
+    if (totalCalculatedMarks > 0) {
+      setMaxMarks(totalCalculatedMarks);
+      setPassingMarks(Math.round(totalCalculatedMarks * 0.4));
+    }
+  }, [totalCalculatedMarks]);
 
   const toggleSubject = (subj: string) => {
     if (selectedSubjects.includes(subj)) {

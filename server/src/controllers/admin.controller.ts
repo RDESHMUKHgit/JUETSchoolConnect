@@ -549,13 +549,23 @@ export const createMockTest = async (req: Request, res: Response): Promise<void>
       return;
     }
 
+    let resolvedSubjectId = subject_id;
+    if (resolvedSubjectId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(resolvedSubjectId)) {
+      const { data: subData } = await supabase
+        .from('subject')
+        .select('subject_id')
+        .ilike('name', resolvedSubjectId.trim())
+        .maybeSingle();
+      resolvedSubjectId = subData ? subData.subject_id : null;
+    }
+
     const { data, error } = await supabase
       .from('mock_test')
       .insert([
         {
           title,
           description,
-          subject_id,
+          subject_id: resolvedSubjectId,
           exam_id,
           total_questions: Number(total_questions),
           max_marks: Number(max_marks),
