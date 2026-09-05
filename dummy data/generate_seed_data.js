@@ -223,8 +223,8 @@ for (let i = 0; i < schoolsData112.length; i++) {
   const regNo = sData.board === 'CBSE' 
     ? `CBSE/AFF/2024/${2130000 + i + 1}`
     : `ICSE/REG/2024/${9140000 + i + 1}`;
-  const slug = sData.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 14);
-  const email = `contact@${slug}.edu.in`;
+  const slug = sData.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 16);
+  const email = `contact.${i + 1}@${slug}.edu.in`;
   const phone = `+91 ${randBetween(70, 99)}${randBetween(1000, 9999)}${randBetween(1000, 9999)}`;
   const website = `https://www.${slug}.edu.in`;
 
@@ -247,7 +247,7 @@ for (let i = 0; i < schoolsData112.length; i++) {
 
   const pName = PRINCIPAL_NAMES[i % PRINCIPAL_NAMES.length] + (i >= PRINCIPAL_NAMES.length ? ` (${sData.city})` : '');
   const pGender = pName.includes('Mrs.') || pName.includes('Sister') || pName.includes('Anandita') || pName.includes('Sunita') || pName.includes('Radhika') || pName.includes('Neeta') || pName.includes('Amita') ? 'Female' : 'Male';
-  const pEmail = `principal.${slug}@schoolconnect.edu.in`;
+  const pEmail = `principal.${slug}.${i + 1}@schoolconnect.edu.in`;
 
   principals.push({
     principal_id: principalId,
