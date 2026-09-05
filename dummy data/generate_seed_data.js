@@ -252,6 +252,7 @@ for (let i = 0; i < schoolsData112.length; i++) {
   principals.push({
     principal_id: principalId,
     school_id: schoolId,
+    auth_id: principalId,
     full_name: pName,
     email: pEmail,
     phone: `+91 ${randBetween(90, 99)}${randBetween(1000, 9999)}${randBetween(1000, 9999)}`,
@@ -271,7 +272,7 @@ sql02 += schools.map(s => `  (${sqlStr(s.school_id)}, ${sqlStr(s.name)}, ${sqlSt
 sql02 += `\nON CONFLICT (school_id) DO UPDATE SET\n  name = EXCLUDED.name,\n  status = EXCLUDED.status;\n\n`;
 
 sql02 += `INSERT INTO public.principal (\n  principal_id, school_id, full_name, email, phone,\n  profile_photo_url, gender, designation, status, created_at\n)\nVALUES\n`;
-sql02 += principals.map(p => `  (${sqlStr(p.principal_id)}, ${sqlStr(p.school_id)}, ${sqlStr(p.full_name)}, ${sqlStr(p.email)}, ${sqlStr(p.phone)}, ${sqlStr(p.profile_photo_url)}, ${sqlStr(p.gender)}, ${sqlStr(p.designation)}, ${sqlStr(p.status)}, ${sqlStr(p.created_at)})`).join(',\n');
+sql02 += principals.map(p => `  (${sqlStr(p.principal_id)}, ${sqlStr(p.school_id)}, ${sqlStr(p.auth_id)}, ${sqlStr(p.full_name)}, ${sqlStr(p.email)}, ${sqlStr(p.phone)}, ${sqlStr(p.profile_photo_url)}, ${sqlStr(p.gender)}, ${sqlStr(p.designation)}, ${sqlStr(p.status)}, ${sqlStr(p.created_at)})`).join(',\n');
 sql02 += `\nON CONFLICT (principal_id) DO UPDATE SET\n  full_name = EXCLUDED.full_name,\n  status = EXCLUDED.status;\n`;
 
 fs.writeFileSync(path.join(outDir, '02_schools_and_principals.sql'), sql02, 'utf-8');
@@ -341,6 +342,7 @@ for (let sIdx = 0; sIdx < schools.length; sIdx++) {
     teachers.push({
       teacher_id: teacherId,
       school_id: school.school_id,
+      auth_id: teacherId,
       full_name: fullName,
       email: tEmail,
       phone: tPhone,
@@ -365,7 +367,7 @@ let sql03 = `-- ================================================================
 sql03 += `-- 03. 493 FACULTY TEACHERS SEED LINKED TO 112 SCHOOLS\n`;
 sql03 += `-- =====================================================================\n\n`;
 sql03 += `INSERT INTO public.teachers (\n  teacher_id, school_id, full_name, email, phone, profile_photo_url,\n  teachers_emp_id, designation, department, qualification, specialization,\n  gender, joining_date, dob, status, created_at\n)\nVALUES\n`;
-sql03 += teachers.map(t => `  (${sqlStr(t.teacher_id)}, ${sqlStr(t.school_id)}, ${sqlStr(t.full_name)}, ${sqlStr(t.email)}, ${sqlStr(t.phone)}, ${sqlStr(t.profile_photo_url)}, ${sqlStr(t.teachers_emp_id)}, ${sqlStr(t.designation)}, ${sqlStr(t.department)}, ${sqlStr(t.qualification)}, ${sqlStr(t.specialization)}, ${sqlStr(t.gender)}, ${sqlStr(t.joining_date)}, ${sqlStr(t.dob)}, ${sqlStr(t.status)}, ${sqlStr(t.created_at)})`).join(',\n');
+sql03 += teachers.map(t => `  (${sqlStr(t.teacher_id)}, ${sqlStr(t.school_id)}, ${sqlStr(t.auth_id)}, ${sqlStr(t.full_name)}, ${sqlStr(t.email)}, ${sqlStr(t.phone)}, ${sqlStr(t.profile_photo_url)}, ${sqlStr(t.teachers_emp_id)}, ${sqlStr(t.designation)}, ${sqlStr(t.department)}, ${sqlStr(t.qualification)}, ${sqlStr(t.specialization)}, ${sqlStr(t.gender)}, ${sqlStr(t.joining_date)}, ${sqlStr(t.dob)}, ${sqlStr(t.status)}, ${sqlStr(t.created_at)})`).join(',\n');
 sql03 += `\nON CONFLICT (teacher_id) DO UPDATE SET\n  full_name = EXCLUDED.full_name,\n  status = EXCLUDED.status;\n`;
 
 fs.writeFileSync(path.join(outDir, '03_teachers.sql'), sql03, 'utf-8');
@@ -445,6 +447,7 @@ for (let sIdx = 0; sIdx < schools.length; sIdx++) {
       student_id: studentId,
       school_id: school.school_id,
       teacher_id: assignedTeacher ? assignedTeacher.teacher_id : null,
+      auth_id: studentId,
       full_name: fullName,
       email: email,
       phone_no: phone,
@@ -466,11 +469,48 @@ let sql04 = `-- ================================================================
 sql04 += `-- 04. 2,130 CLASS 12 STUDENTS SEED LINKED TO SCHOOLS AND TEACHERS\n`;
 sql04 += `-- =====================================================================\n\n`;
 sql04 += `INSERT INTO public.student (\n  student_id, school_id, teacher_id, full_name, email, phone_no,\n  profile_photo_url, admission_no, apaar, dob, gender, class, status, created_at\n)\nVALUES\n`;
-sql04 += students.map(st => `  (${sqlStr(st.student_id)}, ${sqlStr(st.school_id)}, ${sqlStr(st.teacher_id)}, ${sqlStr(st.full_name)}, ${sqlStr(st.email)}, ${sqlStr(st.phone_no)}, ${sqlStr(st.profile_photo_url)}, ${sqlStr(st.admission_no)}, ${sqlStr(st.apaar)}, ${sqlStr(st.dob)}, ${sqlStr(st.gender)}, ${st.class}, ${sqlStr(st.status)}, ${sqlStr(st.created_at)})`).join(',\n');
+sql04 += students.map(st => `  (${sqlStr(st.student_id)}, ${sqlStr(st.school_id)}, ${sqlStr(st.teacher_id)}, ${sqlStr(st.auth_id)}, ${sqlStr(st.full_name)}, ${sqlStr(st.email)}, ${sqlStr(st.phone_no)}, ${sqlStr(st.profile_photo_url)}, ${sqlStr(st.admission_no)}, ${sqlStr(st.apaar)}, ${sqlStr(st.dob)}, ${sqlStr(st.gender)}, ${st.class}, ${sqlStr(st.status)}, ${sqlStr(st.created_at)})`).join(',\n');
 sql04 += `\nON CONFLICT (student_id) DO UPDATE SET\n  full_name = EXCLUDED.full_name,\n  status = EXCLUDED.status;\n`;
 
 fs.writeFileSync(path.join(outDir, '04_students.sql'), sql04, 'utf-8');
 console.log('✅ Generated 04_students.sql');
+
+
+// -------------------------------------------------------------
+// 0. SUPABASE AUTH USERS (ALL ACCOUNTS WITH PASSWORD: 1234567)
+// -------------------------------------------------------------
+const allAuthUsers = [
+  ...principals.map(p => ({ id: p.principal_id, email: p.email, role: 'PRINCIPAL', full_name: p.full_name })),
+  ...teachers.map(t => ({ id: t.teacher_id, email: t.email, role: 'TEACHER', full_name: t.full_name })),
+  ...students.map(st => ({ id: st.student_id, email: st.email, role: 'STUDENT', full_name: st.full_name }))
+];
+
+console.log(`Total Supabase Auth Accounts Prepared: ${allAuthUsers.length} (Password for all: 1234567)`);
+
+let sql00 = `-- =====================================================================\n`;
+sql00 += `-- 00. SUPABASE AUTH USERS & UNIVERSAL PASSWORD SEED ('1234567')\n`;
+sql00 += `-- =====================================================================\n`;
+sql00 += `-- Seeds 2,735 accounts into auth.users and auth.identities (112 Principals,\n`;
+sql00 += `-- 493 Teachers, 2,130 Students) and updates ALL existing users to: 1234567\n`;
+sql00 += `-- =====================================================================\n\n`;
+sql00 += `CREATE EXTENSION IF NOT EXISTS pgcrypto;\n\n`;
+sql00 += `-- 1. Set password '1234567' for ALL currently existing users in auth.users\n`;
+sql00 += `UPDATE auth.users\n`;
+sql00 += `SET \n`;
+sql00 += `  encrypted_password = extensions.crypt('1234567', extensions.gen_salt('bf')),\n`;
+sql00 += `  email_confirmed_at = COALESCE(email_confirmed_at, now()),\n`;
+sql00 += `  updated_at = now();\n\n`;
+sql00 += `-- 2. Insert dummy accounts into auth.users\n`;
+sql00 += `INSERT INTO auth.users (\n  instance_id, id, aud, role, email, encrypted_password,\n  email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at\n)\nVALUES\n`;
+sql00 += allAuthUsers.map(u => `  ('00000000-0000-0000-0000-000000000000', ${sqlStr(u.id)}, 'authenticated', 'authenticated', ${sqlStr(u.email)}, extensions.crypt('1234567', extensions.gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}'::jsonb, jsonb_build_object('role', ${sqlStr(u.role)}, 'full_name', ${sqlStr(u.full_name)}), now(), now())`).join(',\n');
+sql00 += `\nON CONFLICT (id) DO UPDATE SET\n  encrypted_password = EXCLUDED.encrypted_password,\n  email_confirmed_at = EXCLUDED.email_confirmed_at;\n\n`;
+sql00 += `-- 3. Insert matching auth.identities\n`;
+sql00 += `INSERT INTO auth.identities (\n  id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at\n)\nVALUES\n`;
+sql00 += allAuthUsers.map(u => `  (${sqlStr(u.id)}, ${sqlStr(u.id)}, jsonb_build_object('sub', ${sqlStr(u.id)}, 'email', ${sqlStr(u.email)}), 'email', ${sqlStr(u.id)}, now(), now(), now())`).join(',\n');
+sql00 += `\nON CONFLICT DO NOTHING;\n`;
+
+fs.writeFileSync(path.join(outDir, '00_auth_users_and_passwords.sql'), sql00, 'utf-8');
+console.log('✅ Generated 00_auth_users_and_passwords.sql');
 
 // -------------------------------------------------------------
 // 5. 250 QUESTIONS IN QUESTION BANK (ALL SUBJECTS & EXAMS)
@@ -846,6 +886,7 @@ masterSql += `-- Total Entities: 112 Schools, 112 Principals, 493 Teachers, 2130
 masterSql += `-- 250 Question Bank Questions, 20 Mock Tests, ${attempts.length} Test Attempts.\n`;
 masterSql += `-- =====================================================================\n\n`;
 masterSql += `BEGIN;\n\n`;
+masterSql += sql00 + `\n\n`;
 masterSql += sql01 + `\n\n`;
 masterSql += sql02 + `\n\n`;
 masterSql += sql03 + `\n\n`;
