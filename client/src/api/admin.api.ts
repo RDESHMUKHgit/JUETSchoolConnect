@@ -25,6 +25,7 @@ export const adminApi = {
   getTeacherStudents: (teacherId: string) => apiRequest(`/admin/teachers/${teacherId}/students`),
   getPlatformMetrics: () => apiRequest('/admin/metrics'),
   getDetailedPlatformMetrics: () => apiRequest('/admin/detailed-metrics'),
+  getMockTestAnalytics: (testId: string) => apiRequest(`/admin/mock-tests/${testId}/analytics`),
   createMockTest: (data: any) =>
     apiRequest('/admin/mock-tests', {
       method: 'POST',

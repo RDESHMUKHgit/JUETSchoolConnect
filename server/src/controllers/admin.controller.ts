@@ -729,3 +729,155 @@ export const generateMockTestPaper = async (req: Request, res: Response): Promis
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+/**
+ * Detailed Platform-Wide Analytics for a Specific Mock Test
+ * Returns:
+ * - Full Mock Test details and questions
+ * - Aggregate metrics: total attempts, average correct, average score, average percentage, highest score, lowest score, participating schools count
+ * - Complete candidate attempt roster with student name, school name & location, assigned teacher & department, score, accuracy, time taken, and submission date
+ */
+export const getMockTestAnalytics = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { testId } = req.params;
+
+    // 1. Fetch mock test
+    const { data: test, error: testErr } = await supabase
+      .from('mock_test')
+      .select('*, subject:subject_id(name)')
+      .eq('mock_test_id', testId)
+      .single();
+
+    if (testErr || !test) {
+      res.status(404).json({ success: false, message: 'Mock test not found: ' + testErr?.message });
+      return;
+    }
+
+    // 2. Fetch questions
+    const { data: questions } = await supabase
+      .from('questions')
+      .select('*')
+      .eq('mock_test_id', testId)
+      .order('created_at', { ascending: true });
+
+    // 3. Fetch all test attempts across the platform for this mock test
+    const { data: attempts, error: attErr } = await supabase
+      .from('test_attempts')
+      .select('*')
+      .eq('mock_test_id', testId)
+      .order('score_obtained', { ascending: false });
+
+    if (attErr) {
+      res.status(500).json({ success: false, message: 'Failed to fetch test attempts: ' + attErr.message });
+      return;
+    }
+
+    const rawAttempts = attempts || [];
+    const studentIds = Array.from(new Set(rawAttempts.map((a: any) => a.student_id).filter(Boolean)));
+
+    const studentsMap = new Map<string, any>();
+    const schoolsMap = new Map<string, any>();
+    const teachersMap = new Map<string, any>();
+
+    if (studentIds.length > 0) {
+      const { data: studentsData } = await supabase
+        .from('student')
+        .select('student_id, full_name, email, phone_no, admission_no, apaar, school_id, teacher_id')
+        .in('student_id', studentIds);
+
+      const schoolIds = Array.from(new Set((studentsData || []).map((s: any) => s.school_id).filter(Boolean)));
+      const teacherIds = Array.from(new Set((studentsData || []).map((s: any) => s.teacher_id).filter(Boolean)));
+
+      const [schoolsRes, teachersRes] = await Promise.all([
+        schoolIds.length > 0
+          ? supabase.from('school').select('school_id, name, city, state').in('school_id', schoolIds)
+          : { data: [] },
+        teacherIds.length > 0
+          ? supabase.from('teachers').select('teacher_id, full_name, department, email').in('teacher_id', teacherIds)
+          : { data: [] },
+      ]);
+
+      (schoolsRes.data || []).forEach((sc: any) => schoolsMap.set(sc.school_id, sc));
+      (teachersRes.data || []).forEach((tc: any) => teachersMap.set(tc.teacher_id, tc));
+
+      (studentsData || []).forEach((st: any) => {
+        studentsMap.set(st.student_id, {
+          ...st,
+          school: schoolsMap.get(st.school_id) || null,
+          teacher: teachersMap.get(st.teacher_id) || null,
+        });
+      });
+    }
+
+    // 4. Build candidate attempt rows with full institutional & faculty linkage
+    const candidateRoster = rawAttempts.map((att: any, idx: number) => {
+      const st = studentsMap.get(att.student_id);
+      return {
+        rank: idx + 1,
+        attempt_id: att.attempt_id,
+        student_id: att.student_id,
+        student_name: st?.full_name || 'Anonymous Student',
+        student_email: st?.email || 'N/A',
+        student_phone: st?.phone_no || 'N/A',
+        admission_no: st?.admission_no || 'N/A',
+        apaar: st?.apaar || 'N/A',
+        school_id: st?.school_id || null,
+        school_name: st?.school?.name || 'Unlinked School',
+        school_location: st?.school ? `${st.school.city}, ${st.school.state}` : 'N/A',
+        teacher_id: st?.teacher_id || null,
+        teacher_name: st?.teacher?.full_name || 'Unassigned',
+        teacher_dept: st?.teacher?.department || 'Faculty',
+        score_obtained: att.score_obtained !== null && att.score_obtained !== undefined ? att.score_obtained : 0,
+        percentage: att.percentage !== null && att.percentage !== undefined ? att.percentage : 0,
+        correct_ans: att.correct_ans || 0,
+        wrong_ans: att.wrong_ans || 0,
+        unanswered: att.unanswered || 0,
+        time_taken: att.time_taken || 0,
+        submitted_at: att.submitted_at || att.created_at,
+      };
+    });
+
+    // 5. Compute key analytics
+    const totalAttempts = candidateRoster.length;
+    let highestScore = 0;
+    let lowestScore = 0;
+    let totalScore = 0;
+    let totalCorrect = 0;
+    let totalPercentage = 0;
+    const participatingSchools = new Set<string>();
+
+    if (totalAttempts > 0) {
+      highestScore = Math.max(...candidateRoster.map((c: any) => c.score_obtained));
+      lowestScore = Math.min(...candidateRoster.map((c: any) => c.score_obtained));
+      totalScore = candidateRoster.reduce((sum: number, c: any) => sum + c.score_obtained, 0);
+      totalCorrect = candidateRoster.reduce((sum: number, c: any) => sum + c.correct_ans, 0);
+      totalPercentage = candidateRoster.reduce((sum: number, c: any) => sum + c.percentage, 0);
+
+      candidateRoster.forEach((c: any) => {
+        if (c.school_name && c.school_name !== 'Unlinked School') {
+          participatingSchools.add(c.school_name);
+        }
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      mockTest: {
+        ...test,
+        questions: questions || [],
+      },
+      analytics: {
+        totalAttempts,
+        highestScore,
+        lowestScore,
+        averageScore: totalAttempts > 0 ? Math.round((totalScore / totalAttempts) * 10) / 10 : 0,
+        averageCorrect: totalAttempts > 0 ? Math.round((totalCorrect / totalAttempts) * 10) / 10 : 0,
+        averagePercentage: totalAttempts > 0 ? Math.round((totalPercentage / totalAttempts) * 10) / 10 : 0,
+        participatingSchoolsCount: participatingSchools.size,
+      },
+      candidates: candidateRoster,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

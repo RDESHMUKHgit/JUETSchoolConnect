@@ -86,6 +86,9 @@ export const AdminPortal: React.FC = () => {
   const [inspectModalOpen, setInspectModalOpen] = useState(false);
   const [inspectingTest, setInspectingTest] = useState<any | null>(null);
   const [inspectingLoading, setInspectingLoading] = useState(false);
+  const [inspectModalTab, setInspectModalTab] = useState<'analytics' | 'questions'>('analytics');
+  const [candidateSearch, setCandidateSearch] = useState('');
+  const [inspectAnalyticsData, setInspectAnalyticsData] = useState<any | null>(null);
 
   const isPlatformAdmin = user && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN');
 
@@ -226,26 +229,50 @@ export const AdminPortal: React.FC = () => {
     }
   };
 
-  // Inspect full mock test paper in read-only modal
+  // Inspect full mock test paper & platform-wide analytics in modal
   const handleInspectTest = async (testId: string) => {
     try {
       setInspectingLoading(true);
       setInspectModalOpen(true);
-      const res = await testApi.getFullTestPaper(testId);
-      setInspectingTest(res.mockTest || res);
+      setInspectModalTab('analytics');
+      setCandidateSearch('');
+      const res = await adminApi.getMockTestAnalytics(testId);
+      if (res.success) {
+        setInspectingTest(res.mockTest);
+        setInspectAnalyticsData({
+          analytics: res.analytics,
+          candidates: res.candidates || [],
+        });
+      }
     } catch (err: any) {
-      // Fallback to getMockTestDetails
+      // Fallback to getFullTestPaper or getMockTestDetails
       try {
-        const alt = await testApi.getMockTestDetails(testId);
+        const alt = await testApi.getFullTestPaper(testId);
         setInspectingTest(alt.mockTest || alt);
+        setInspectAnalyticsData(null);
       } catch (altErr: any) {
-        setActionMessage('Failed to fetch test paper: ' + altErr.message);
+        setActionMessage('Failed to fetch test details: ' + err.message);
         setInspectModalOpen(false);
       }
     } finally {
       setInspectingLoading(false);
     }
   };
+
+  const filteredCandidates = useMemo(() => {
+    if (!inspectAnalyticsData?.candidates) return [];
+    const q = candidateSearch.toLowerCase().trim();
+    if (!q) return inspectAnalyticsData.candidates;
+    return inspectAnalyticsData.candidates.filter(
+      (c: any) =>
+        c.student_name?.toLowerCase().includes(q) ||
+        c.student_email?.toLowerCase().includes(q) ||
+        c.admission_no?.toLowerCase().includes(q) ||
+        c.apaar?.toLowerCase().includes(q) ||
+        c.school_name?.toLowerCase().includes(q) ||
+        c.teacher_name?.toLowerCase().includes(q)
+    );
+  }, [inspectAnalyticsData, candidateSearch]);
 
   // Filtered Schools for Hierarchy Directory
   const filteredSchools = useMemo(() => {
@@ -1872,122 +1899,385 @@ export const AdminPortal: React.FC = () => {
             </div>
           )}
 
-          {/* READ-ONLY TEST INSPECTION MODAL */}
+          {/* READ-ONLY TEST INSPECTION & PLATFORM ANALYTICS MODAL */}
           <Modal
             isOpen={inspectModalOpen}
             onClose={() => {
               setInspectModalOpen(false);
               setInspectingTest(null);
+              setInspectAnalyticsData(null);
             }}
-            title={inspectingTest?.title || 'Mock Test Blueprint Inspection'}
-            maxWidth="750px"
+            title={inspectingTest?.title || 'Mock Test Inspection & Platform Analytics'}
+            maxWidth="1000px"
           >
             {inspectingLoading ? (
-              <LoadingSpinner message="Retrieving calibrated test paper & questions..." />
+              <LoadingSpinner message="Retrieving calibrated test paper, candidate attempts & platform analytics..." />
             ) : inspectingTest ? (
               <div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
+                {/* Test Meta Header Badges */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
                   <Badge variant="gold">{inspectingTest.subject?.name || 'All Subjects'}</Badge>
                   <Badge variant="default">{inspectingTest.total_questions} Questions</Badge>
                   <Badge variant="default">{inspectingTest.max_marks} Max Marks</Badge>
-                  <Badge variant="default">{inspectingTest.max_time_in_mins} Minutes</Badge>
+                  <Badge variant="default">{inspectingTest.max_time_in_mins} Minutes Duration</Badge>
                   <Badge variant={inspectingTest.negative_marking ? 'danger' : 'success'}>
-                    {inspectingTest.negative_marking ? 'Negative Marking Enabled' : 'No Negative Penalty'}
+                    {inspectingTest.negative_marking ? 'Negative Marking (+4 / -1)' : 'No Negative Penalty'}
                   </Badge>
+                  {inspectingTest.passing_marks && (
+                    <Badge variant="info">Passing: {inspectingTest.passing_marks} Marks</Badge>
+                  )}
                 </div>
 
                 {inspectingTest.description && (
-                  <p style={{ fontSize: '13px', color: '#475569', marginBottom: '14px', lineHeight: 1.5 }}>
+                  <p style={{ fontSize: '13px', color: '#475569', marginBottom: '16px', lineHeight: 1.5 }}>
                     <strong>Syllabus / Instructions:</strong> {inspectingTest.description}
                   </p>
                 )}
 
-                <div style={{ marginTop: '16px' }}>
-                  <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', marginBottom: '12px' }}>
-                    Paper Questions ({inspectingTest.questions?.length || 0})
-                  </h4>
-
-                  {(!inspectingTest.questions || inspectingTest.questions.length === 0) ? (
-                    <div style={{ padding: '20px', textAlign: 'center', color: '#94A3B8', fontSize: '13px' }}>
-                      Questions have not been linked to this paper yet.
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '420px', overflowY: 'auto' }}>
-                      {inspectingTest.questions.map((q: any, idx: number) => (
-                        <div
-                          key={q.question_id || idx}
-                          style={{
-                            padding: '14px',
-                            borderRadius: '10px',
-                            border: '1px solid #E2E8F0',
-                            backgroundColor: '#F8FAFC',
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#0284C7' }}>
-                              Question {idx + 1} ({q.question_type || 'MCQ'})
-                            </span>
-                            <span style={{ fontSize: '11px', color: '#64748B' }}>
-                              Marks: +{q.marks_per_question || 4} / -{q.negative_marking ?? 1}
-                            </span>
-                          </div>
-
-                          <div style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A', lineHeight: 1.4 }}>
-                            {q.question_text}
-                          </div>
-
-                          {q.question_image_url && (
-                            <img
-                              src={q.question_image_url}
-                              alt={`Question ${idx + 1}`}
-                              style={{ maxWidth: '100%', maxHeight: '180px', marginTop: '10px', borderRadius: '6px' }}
-                            />
-                          )}
-
-                          {q.option_array && Array.isArray(q.option_array) && (
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginTop: '10px' }}>
-                              {q.option_array.map((opt: any, oIdx: number) => {
-                                const key = typeof opt === 'object' ? opt.key : ['A', 'B', 'C', 'D'][oIdx];
-                                const text = typeof opt === 'object' ? opt.text : String(opt);
-                                const isCorrect =
-                                  q.answers?.correct === key ||
-                                  q.answers?.key === key ||
-                                  (Array.isArray(q.answers) && q.answers.includes(key));
-
-                                return (
-                                  <div
-                                    key={oIdx}
-                                    style={{
-                                      padding: '6px 10px',
-                                      borderRadius: '6px',
-                                      border: isCorrect ? '1px solid #10B981' : '1px solid #E2E8F0',
-                                      backgroundColor: isCorrect ? '#ECFDF5' : '#FFFFFF',
-                                      fontSize: '12px',
-                                      color: isCorrect ? '#065F46' : '#334155',
-                                      fontWeight: isCorrect ? 700 : 400,
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '6px',
-                                    }}
-                                  >
-                                    <span style={{ fontWeight: 700 }}>{key}.</span>
-                                    <span>{text}</span>
-                                    {isCorrect && (
-                                      <CheckCircle size={13} style={{ color: '#10B981', marginLeft: 'auto' }} />
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                {/* Modal View Switcher */}
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '10px',
+                    borderBottom: '2px solid #E2E8F0',
+                    paddingBottom: '12px',
+                    marginBottom: '20px',
+                  }}
+                >
+                  <Button
+                    variant={inspectModalTab === 'analytics' ? 'primary' : 'ghost'}
+                    size="sm"
+                    icon={<Users size={15} />}
+                    onClick={() => setInspectModalTab('analytics')}
+                  >
+                    Platform Performance & Candidate Roster ({inspectAnalyticsData?.candidates?.length || 0})
+                  </Button>
+                  <Button
+                    variant={inspectModalTab === 'questions' ? 'primary' : 'ghost'}
+                    size="sm"
+                    icon={<BookOpen size={15} />}
+                    onClick={() => setInspectModalTab('questions')}
+                  >
+                    Paper Questions & Blueprint ({inspectingTest.questions?.length || 0})
+                  </Button>
                 </div>
 
+                {/* VIEW 1: PLATFORM PERFORMANCE & CANDIDATES ROSTER */}
+                {inspectModalTab === 'analytics' && (
+                  <div>
+                    {/* Platform Analytics KPI Tiles */}
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                        gap: '12px',
+                        marginBottom: '20px',
+                      }}
+                    >
+                      <div
+                        style={{
+                          backgroundColor: '#F8FAFC',
+                          border: '1px solid #E2E8F0',
+                          borderRadius: '10px',
+                          padding: '12px',
+                          textAlign: 'center',
+                        }}
+                      >
+                        <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Total Attempts</div>
+                        <div style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', marginTop: '2px' }}>
+                          {inspectAnalyticsData?.analytics?.totalAttempts || 0}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#0284C7', marginTop: '2px' }}>Enrolled Students</div>
+                      </div>
+
+                      <div
+                        style={{
+                          backgroundColor: '#F8FAFC',
+                          border: '1px solid #E2E8F0',
+                          borderRadius: '10px',
+                          padding: '12px',
+                          textAlign: 'center',
+                        }}
+                      >
+                        <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Average Correct</div>
+                        <div style={{ fontSize: '24px', fontWeight: 800, color: '#10B981', marginTop: '2px' }}>
+                          {inspectAnalyticsData?.analytics?.averageCorrect ?? 0}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                          out of {inspectingTest.total_questions} Questions
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          backgroundColor: '#F8FAFC',
+                          border: '1px solid #E2E8F0',
+                          borderRadius: '10px',
+                          padding: '12px',
+                          textAlign: 'center',
+                        }}
+                      >
+                        <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Highest Score</div>
+                        <div style={{ fontSize: '24px', fontWeight: 800, color: '#9A751A', marginTop: '2px' }}>
+                          {inspectAnalyticsData?.analytics?.highestScore ?? 0}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                          out of {inspectingTest.max_marks} Marks
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          backgroundColor: '#F8FAFC',
+                          border: '1px solid #E2E8F0',
+                          borderRadius: '10px',
+                          padding: '12px',
+                          textAlign: 'center',
+                        }}
+                      >
+                        <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Average Platform Score</div>
+                        <div style={{ fontSize: '24px', fontWeight: 800, color: '#0284C7', marginTop: '2px' }}>
+                          {inspectAnalyticsData?.analytics?.averageScore ?? 0}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#10B981', marginTop: '2px', fontWeight: 600 }}>
+                          {inspectAnalyticsData?.analytics?.averagePercentage ?? 0}% Mean Accuracy
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          backgroundColor: '#F8FAFC',
+                          border: '1px solid #E2E8F0',
+                          borderRadius: '10px',
+                          padding: '12px',
+                          textAlign: 'center',
+                        }}
+                      >
+                        <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Participating Schools</div>
+                        <div style={{ fontSize: '24px', fontWeight: 800, color: '#7C3AED', marginTop: '2px' }}>
+                          {inspectAnalyticsData?.analytics?.participatingSchoolsCount || 0}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>Across Platform</div>
+                      </div>
+                    </div>
+
+                    {/* Candidate Search & Table */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>
+                        Candidate Submissions ({filteredCandidates.length})
+                      </div>
+                      <div style={{ width: '280px' }}>
+                        <Input
+                          placeholder="Search candidate, school, teacher..."
+                          value={candidateSearch}
+                          onChange={(e) => setCandidateSearch(e.target.value)}
+                          icon={<Search size={15} />}
+                        />
+                      </div>
+                    </div>
+
+                    {filteredCandidates.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '36px 0', color: '#94A3B8', fontSize: '13px', backgroundColor: '#F8FAFC', borderRadius: '8px' }}>
+                        {inspectAnalyticsData?.candidates?.length === 0
+                          ? 'No students have attempted this mock test yet across the platform.'
+                          : 'No candidate attempts match your search query.'}
+                      </div>
+                    ) : (
+                      <div style={{ overflowX: 'auto', maxHeight: '400px', border: '1px solid #E2E8F0', borderRadius: '8px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                          <thead style={{ position: 'sticky', top: 0, backgroundColor: '#F8FAFC', zIndex: 10 }}>
+                            <tr style={{ borderBottom: '2px solid #E2E8F0', textAlign: 'left', color: '#475569' }}>
+                              <th style={{ padding: '10px' }}>Rank / Candidate</th>
+                              <th style={{ padding: '10px' }}>School / Institution</th>
+                              <th style={{ padding: '10px' }}>Assigned Faculty</th>
+                              <th style={{ padding: '10px' }}>Score</th>
+                              <th style={{ padding: '10px' }}>Accuracy</th>
+                              <th style={{ padding: '10px' }}>Answers (C/W/S)</th>
+                              <th style={{ padding: '10px' }}>Time Taken</th>
+                              <th style={{ padding: '10px' }}>Submitted On</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredCandidates.map((c: any) => (
+                              <tr key={c.attempt_id} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                                <td style={{ padding: '10px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span
+                                      style={{
+                                        width: '22px',
+                                        height: '22px',
+                                        borderRadius: '50%',
+                                        backgroundColor: c.rank <= 3 ? '#FEF08A' : '#F1F5F9',
+                                        color: c.rank <= 3 ? '#9A751A' : '#475569',
+                                        fontSize: '11px',
+                                        fontWeight: 800,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        flexShrink: 0,
+                                      }}
+                                    >
+                                      {c.rank}
+                                    </span>
+                                    <div>
+                                      <div style={{ fontWeight: 700, color: '#0F172A' }}>{c.student_name}</div>
+                                      <div style={{ fontSize: '11px', color: '#64748B' }}>
+                                        Adm: {c.admission_no || 'N/A'} {c.apaar ? `• APAAR: ${c.apaar}` : ''}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td style={{ padding: '10px' }}>
+                                  <div style={{ fontWeight: 600, color: '#0F172A' }}>{c.school_name}</div>
+                                  <div style={{ fontSize: '11px', color: '#64748B' }}>{c.school_location}</div>
+                                </td>
+                                <td style={{ padding: '10px' }}>
+                                  <div style={{ fontWeight: 600, color: '#0284C7' }}>{c.teacher_name}</div>
+                                  <div style={{ fontSize: '11px', color: '#64748B' }}>Dept: {c.teacher_dept}</div>
+                                </td>
+                                <td style={{ padding: '10px' }}>
+                                  <span
+                                    style={{
+                                      fontSize: '13px',
+                                      fontWeight: 800,
+                                      color: c.score_obtained >= (inspectingTest.passing_marks || 0) ? '#10B981' : '#E11D48',
+                                    }}
+                                  >
+                                    {c.score_obtained}
+                                  </span>
+                                  <span style={{ fontSize: '11px', color: '#64748B' }}> / {inspectingTest.max_marks}</span>
+                                </td>
+                                <td style={{ padding: '10px' }}>
+                                  <Badge variant={c.percentage >= 60 ? 'success' : c.percentage >= 40 ? 'gold' : 'danger'}>
+                                    {c.percentage}%
+                                  </Badge>
+                                </td>
+                                <td style={{ padding: '10px' }}>
+                                  <div style={{ display: 'flex', gap: '4px', fontSize: '11px' }}>
+                                    <span style={{ color: '#10B981', fontWeight: 700 }}>{c.correct_ans}C</span>
+                                    <span style={{ color: '#94A3B8' }}>/</span>
+                                    <span style={{ color: '#E11D48', fontWeight: 700 }}>{c.wrong_ans}W</span>
+                                    <span style={{ color: '#94A3B8' }}>/</span>
+                                    <span style={{ color: '#64748B' }}>{c.unanswered}S</span>
+                                  </div>
+                                </td>
+                                <td style={{ padding: '10px', color: '#475569' }}>
+                                  {Math.floor(c.time_taken / 60)}m {c.time_taken % 60}s
+                                </td>
+                                <td style={{ padding: '10px', color: '#64748B', whiteSpace: 'nowrap' }}>
+                                  {c.submitted_at ? new Date(c.submitted_at).toLocaleDateString() : 'N/A'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* VIEW 2: QUESTIONS & BLUEPRINT INSPECTION */}
+                {inspectModalTab === 'questions' && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', margin: 0 }}>
+                        Paper Questions ({inspectingTest.questions?.length || 0})
+                      </h4>
+                      <span style={{ fontSize: '12px', color: '#64748B' }}>
+                        Correct answers highlighted with green badges for administrator review.
+                      </span>
+                    </div>
+
+                    {(!inspectingTest.questions || inspectingTest.questions.length === 0) ? (
+                      <div style={{ padding: '24px', textAlign: 'center', color: '#94A3B8', fontSize: '13px' }}>
+                        Questions have not been linked to this paper yet.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '460px', overflowY: 'auto' }}>
+                        {inspectingTest.questions.map((q: any, idx: number) => (
+                          <div
+                            key={q.question_id || idx}
+                            style={{
+                              padding: '14px',
+                              borderRadius: '10px',
+                              border: '1px solid #E2E8F0',
+                              backgroundColor: '#F8FAFC',
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                              <span style={{ fontSize: '12px', fontWeight: 700, color: '#0284C7' }}>
+                                Question {idx + 1} ({q.question_type || 'MCQ'})
+                              </span>
+                              <span style={{ fontSize: '11px', color: '#64748B' }}>
+                                Marks: +{q.marks_per_question || 4} / -{q.negative_marking ?? 1}
+                              </span>
+                            </div>
+
+                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A', lineHeight: 1.4 }}>
+                              {q.question_text}
+                            </div>
+
+                            {q.question_image_url && (
+                              <img
+                                src={q.question_image_url}
+                                alt={`Question ${idx + 1}`}
+                                style={{ maxWidth: '100%', maxHeight: '180px', marginTop: '10px', borderRadius: '6px' }}
+                              />
+                            )}
+
+                            {q.option_array && Array.isArray(q.option_array) && (
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginTop: '10px' }}>
+                                {q.option_array.map((opt: any, oIdx: number) => {
+                                  const key = typeof opt === 'object' ? opt.key : ['A', 'B', 'C', 'D'][oIdx];
+                                  const text = typeof opt === 'object' ? opt.text : String(opt);
+                                  const isCorrect =
+                                    q.answers?.correct === key ||
+                                    q.answers?.key === key ||
+                                    (Array.isArray(q.answers) && q.answers.includes(key));
+
+                                  return (
+                                    <div
+                                      key={oIdx}
+                                      style={{
+                                        padding: '6px 10px',
+                                        borderRadius: '6px',
+                                        border: isCorrect ? '1px solid #10B981' : '1px solid #E2E8F0',
+                                        backgroundColor: isCorrect ? '#ECFDF5' : '#FFFFFF',
+                                        fontSize: '12px',
+                                        color: isCorrect ? '#065F46' : '#334155',
+                                        fontWeight: isCorrect ? 700 : 400,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                      }}
+                                    >
+                                      <span style={{ fontWeight: 700 }}>{key}.</span>
+                                      <span>{text}</span>
+                                      {isCorrect && (
+                                        <CheckCircle size={13} style={{ color: '#10B981', marginLeft: 'auto' }} />
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
-                  <Button variant="ghost" size="sm" onClick={() => setInspectModalOpen(false)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setInspectModalOpen(false);
+                      setInspectingTest(null);
+                      setInspectAnalyticsData(null);
+                    }}
+                  >
                     Close Inspector
                   </Button>
                 </div>

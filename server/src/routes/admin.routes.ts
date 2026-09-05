@@ -8,6 +8,7 @@ import {
   getTeacherStudents,
   getPlatformMetrics,
   getDetailedPlatformMetrics,
+  getMockTestAnalytics,
   createMockTest,
   createQuestion,
   generateMockTestPaper,
@@ -39,6 +40,7 @@ router.get('/schools/:schoolId/hierarchy', requireRole('ADMIN', 'SUPER_ADMIN'), 
 router.get('/teachers/:teacherId/students', requireRole('ADMIN', 'SUPER_ADMIN'), getTeacherStudents);
 router.get('/metrics', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'), getPlatformMetrics);
 router.get('/detailed-metrics', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'), getDetailedPlatformMetrics);
+router.get('/mock-tests/:testId/analytics', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'), getMockTestAnalytics);
 
 // Question Bank Operations
 router.get('/question-bank', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'), getQuestionBank);

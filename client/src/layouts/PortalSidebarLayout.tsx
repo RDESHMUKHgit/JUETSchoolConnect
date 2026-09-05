@@ -55,12 +55,13 @@ export const PortalSidebarLayout: React.FC<PortalSidebarLayoutProps> = ({
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F8FAFC' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'transparent' }}>
       {/* Sidebar Desktop */}
       <aside
         style={{
           width: '260px',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(12px)',
           borderRight: '1px solid #E2E8F0',
           display: 'flex',
           flexDirection: 'column',
