@@ -61,16 +61,29 @@
 body {
   font-family: var(--font-main);
   background-color: var(--bg-darkest);
-  background-image: url('/base_bg.png');
-  background-repeat: repeat;
-  background-position: top center;
-  background-attachment: fixed;
   color: var(--text-main);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
   min-height: 100vh;
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-image: url('/base_bg.png');
+  background-repeat: repeat;
+  background-position: top center;
+  background-attachment: fixed;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
 }
 
 h1, h2, h3, h4, h5, h6 {
