@@ -9,6 +9,8 @@ export interface NavItem {
   path: string;
   icon: React.ReactNode;
   badge?: string;
+  onClick?: () => void;
+  isActive?: boolean;
 }
 
 interface PortalSidebarLayoutProps {
@@ -117,11 +119,18 @@ export const PortalSidebarLayout: React.FC<PortalSidebarLayoutProps> = ({
         {/* Navigation Items */}
         <nav style={{ flex: 1, padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto' }}>
           {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive = item.isActive !== undefined
+              ? item.isActive
+              : (location.pathname + location.search) === item.path || location.pathname === item.path;
             return (
               <Link
-                key={item.path}
+                key={item.label + item.path}
                 to={item.path}
+                onClick={(e) => {
+                  if (item.onClick) {
+                    item.onClick();
+                  }
+                }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -134,6 +143,8 @@ export const PortalSidebarLayout: React.FC<PortalSidebarLayoutProps> = ({
                   backgroundColor: isActive ? '#FEFCE8' : 'transparent',
                   border: isActive ? '1px solid #FDE047' : '1px solid transparent',
                   transition: 'all 0.15s ease',
+                  cursor: 'pointer',
+                  textDecoration: 'none',
                 }}
                 onMouseEnter={(e) => {
                   if (!isActive) {
@@ -226,27 +237,38 @@ export const PortalSidebarLayout: React.FC<PortalSidebarLayoutProps> = ({
               boxShadow: '0 8px 24px rgba(15, 23, 42, 0.08)',
             }}
           >
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setMobileOpen(false)}
-                style={{
-                  padding: '10px 12px',
-                  borderRadius: '6px',
-                  fontWeight: 500,
-                  color: location.pathname === item.path ? '#9A751A' : '#334155',
-                  backgroundColor: location.pathname === item.path ? '#FEFCE8' : 'transparent',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  fontSize: '14px',
-                }}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </Link>
-            ))}
+            {navItems.map((item) => {
+              const isActive = item.isActive !== undefined
+                ? item.isActive
+                : (location.pathname + location.search) === item.path || location.pathname === item.path;
+              return (
+                <Link
+                  key={item.label + item.path}
+                  to={item.path}
+                  onClick={(e) => {
+                    setMobileOpen(false);
+                    if (item.onClick) {
+                      item.onClick();
+                    }
+                  }}
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: '6px',
+                    fontWeight: isActive ? 700 : 500,
+                    color: isActive ? '#9A751A' : '#334155',
+                    backgroundColor: isActive ? '#FEFCE8' : 'transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '14px',
+                    textDecoration: 'none',
+                  }}
+                >
+                  {item.icon}
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
             <button
               onClick={handleLogout}
               style={{

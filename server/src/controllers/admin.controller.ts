@@ -121,31 +121,177 @@ export const rejectSchool = async (req: Request, res: Response): Promise<void> =
 
 export const getAllSchools = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { status } = req.query;
-    let query = supabase.from('principal').select('principal_id, full_name, email, phone, status, created_at, school:school_id (*)').order('created_at', { ascending: false });
+    const { status, search } = req.query;
 
-    if (status) {
-      query = query.eq('status', status);
+    let schoolQuery = supabase.from('school').select('*').order('created_at', { ascending: false });
+    if (status && status !== 'ALL') {
+      schoolQuery = schoolQuery.eq('status', status);
     }
 
-    const { data, error } = await query;
-    if (error) {
-      res.status(500).json({ success: false, message: 'Failed to fetch schools: ' + error.message });
+    const { data: schoolsData, error: sErr } = await schoolQuery;
+    if (sErr) throw sErr;
+
+    // Fetch principals, teachers, students to compute counts accurately and reliably
+    const [pRes, tRes, stRes] = await Promise.all([
+      supabase.from('principal').select('principal_id, school_id, full_name, email, phone, designation, status, created_at'),
+      supabase.from('teachers').select('teacher_id, school_id, full_name, email, status'),
+      supabase.from('student').select('student_id, school_id, teacher_id, full_name, status'),
+    ]);
+
+    const principalsBySchool = new Map<string, any>();
+    (pRes.data || []).forEach((p: any) => {
+      if (p.school_id) principalsBySchool.set(p.school_id, p);
+    });
+
+    const teachersCountBySchool = new Map<string, number>();
+    (tRes.data || []).forEach((t: any) => {
+      if (t.school_id) {
+        teachersCountBySchool.set(t.school_id, (teachersCountBySchool.get(t.school_id) || 0) + 1);
+      }
+    });
+
+    const studentsCountBySchool = new Map<string, number>();
+    (stRes.data || []).forEach((st: any) => {
+      if (st.school_id) {
+        studentsCountBySchool.set(st.school_id, (studentsCountBySchool.get(st.school_id) || 0) + 1);
+      }
+    });
+
+    let schools = (schoolsData || []).map((s: any) => {
+      const p = principalsBySchool.get(s.school_id);
+      return {
+        ...s,
+        principal: p || null,
+        teacher_count: teachersCountBySchool.get(s.school_id) || 0,
+        student_count: studentsCountBySchool.get(s.school_id) || 0,
+        status: s.status || (p?.status === 'ACTIVE' || p?.status === 'VERIFIED' ? 'VERIFIED' : p?.status || 'PENDING'),
+      };
+    });
+
+    if (search) {
+      const q = (search as string).toLowerCase().trim();
+      schools = schools.filter(
+        (s: any) =>
+          s.name?.toLowerCase().includes(q) ||
+          s.city?.toLowerCase().includes(q) ||
+          s.state?.toLowerCase().includes(q) ||
+          s.registration_no?.toLowerCase().includes(q) ||
+          s.principal?.full_name?.toLowerCase().includes(q) ||
+          s.principal?.email?.toLowerCase().includes(q)
+      );
+    }
+
+    res.status(200).json({ success: true, schools });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Get detailed institutional hierarchy for a specific school
+ * Returns: School info, Principal info, All Teachers (with student counts and student list), All Students in School
+ */
+export const getSchoolHierarchy = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { schoolId } = req.params;
+
+    const [sRes, pRes, tRes, stRes] = await Promise.all([
+      supabase.from('school').select('*').eq('school_id', schoolId).single(),
+      supabase.from('principal').select('*').eq('school_id', schoolId).maybeSingle(),
+      supabase
+        .from('teachers')
+        .select('*')
+        .eq('school_id', schoolId)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('student')
+        .select('*')
+        .eq('school_id', schoolId)
+        .order('created_at', { ascending: false }),
+    ]);
+
+    if (sRes.error) {
+      res.status(404).json({ success: false, message: 'School not found: ' + sRes.error.message });
       return;
     }
 
-    const schools = (data || []).map((p: any) => ({
-      ...p.school,
-      principal: {
-        principal_id: p.principal_id,
-        full_name: p.full_name,
-        email: p.email,
-        phone: p.phone,
-      },
-      status: p.status,
+    const teachers = tRes.data || [];
+    const allStudents = stRes.data || [];
+
+    // Map teacher id to their students
+    const studentsByTeacher = new Map<string, any[]>();
+    allStudents.forEach((st: any) => {
+      if (st.teacher_id) {
+        const list = studentsByTeacher.get(st.teacher_id) || [];
+        list.push(st);
+        studentsByTeacher.set(st.teacher_id, list);
+      }
+    });
+
+    // Attach student list and count to each teacher
+    const teachersWithStudents = teachers.map((t: any) => {
+      const teacherStudents = studentsByTeacher.get(t.teacher_id) || [];
+      return {
+        ...t,
+        student_count: teacherStudents.length,
+        students: teacherStudents,
+      };
+    });
+
+    // Create a map of teacher names to label students in the school-wide list
+    const teacherNameMap = new Map<string, string>();
+    teachers.forEach((t: any) => {
+      teacherNameMap.set(t.teacher_id, t.full_name);
+    });
+
+    const studentsWithTeacherName = allStudents.map((st: any) => ({
+      ...st,
+      teacher_name: st.teacher_id ? teacherNameMap.get(st.teacher_id) || 'Assigned Faculty' : 'Unassigned',
     }));
 
-    res.status(200).json({ success: true, schools });
+    res.status(200).json({
+      success: true,
+      school: sRes.data,
+      principal: pRes.data || null,
+      teachers: teachersWithStudents,
+      all_students: studentsWithTeacherName,
+      summary: {
+        totalTeachers: teachers.length,
+        activeTeachers: teachers.filter((t: any) => t.status === 'ACTIVE' || t.status === 'VERIFIED').length,
+        pendingTeachers: teachers.filter((t: any) => t.status === 'PENDING' || t.status === 'INVITED').length,
+        totalStudents: allStudents.length,
+        activeStudents: allStudents.filter((st: any) => st.status === 'ACTIVE' || st.status === 'VERIFIED').length,
+        pendingStudents: allStudents.filter((st: any) => st.status === 'PENDING').length,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Get all students assigned to a specific teacher
+ */
+export const getTeacherStudents = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { teacherId } = req.params;
+
+    const [tRes, stRes] = await Promise.all([
+      supabase.from('teachers').select('*, school:school_id(*)').eq('teacher_id', teacherId).single(),
+      supabase.from('student').select('*').eq('teacher_id', teacherId).order('created_at', { ascending: false }),
+    ]);
+
+    if (tRes.error) {
+      res.status(404).json({ success: false, message: 'Teacher not found: ' + tRes.error.message });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      teacher: tRes.data,
+      students: stRes.data || [],
+      totalStudents: (stRes.data || []).length,
+    });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -174,6 +320,194 @@ export const getPlatformMetrics = async (_req: Request, res: Response): Promise<
         totalMockTests: testsRes.count || 0,
         totalAttempts: attemptsRes.count || 0,
       },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Detailed Platform Matrix: Macro & Micro Status Analytics with full records
+ */
+export const getDetailedPlatformMetrics = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const [schoolsRes, principalsRes, teachersRes, studentsRes, testsRes] = await Promise.all([
+      supabase.from('school').select('*').order('name'),
+      supabase.from('principal').select('*, school:school_id(name, city, state)').order('created_at', { ascending: false }),
+      supabase.from('teachers').select('*, school:school_id(name, city, state)').order('created_at', { ascending: false }),
+      supabase.from('student').select('*, school:school_id(name), teachers:teacher_id(full_name)').order('created_at', { ascending: false }),
+      supabase.from('mock_test').select('*, subject:subject_id(name)'),
+    ]);
+
+    const schools = schoolsRes.data || [];
+    const principals = principalsRes.data || [];
+    const teachers = teachersRes.data || [];
+    const students = studentsRes.data || [];
+    const tests = testsRes.data || [];
+
+    // 1. Principals Status Grouping
+    const principalStatusMap: Record<string, any[]> = {
+      ACTIVE: [],
+      PENDING: [],
+      NOT_COMPLETED: [],
+      COMPLETED: [],
+      SUSPENDED: [],
+    };
+    principals.forEach((p: any) => {
+      const st = p.status || 'PENDING';
+      if (!principalStatusMap[st]) principalStatusMap[st] = [];
+      principalStatusMap[st].push({
+        ...p,
+        school_name: p.school?.name || 'Unlinked Institution',
+      });
+    });
+
+    const principalsAnalytics = Object.entries(principalStatusMap).map(([status, list]) => ({
+      status,
+      count: list.length,
+      records: list,
+    }));
+
+    // 2. Schools Status Grouping
+    const schoolStatusMap: Record<string, any[]> = {
+      VERIFIED: [],
+      PENDING: [],
+      REJECTED: [],
+    };
+    schools.forEach((s: any) => {
+      const st = s.status || 'PENDING';
+      if (!schoolStatusMap[st]) schoolStatusMap[st] = [];
+      schoolStatusMap[st].push(s);
+    });
+
+    const schoolsAnalytics = Object.entries(schoolStatusMap).map(([status, list]) => ({
+      status,
+      count: list.length,
+      records: list,
+    }));
+
+    // 3. Teachers Status Grouping
+    const teacherStatusMap: Record<string, any[]> = {
+      ACTIVE: [],
+      PENDING: [],
+      INVITED: [],
+      SUSPENDED: [],
+    };
+    teachers.forEach((t: any) => {
+      const st = t.status || 'PENDING';
+      if (!teacherStatusMap[st]) teacherStatusMap[st] = [];
+      teacherStatusMap[st].push({
+        ...t,
+        school_name: t.school?.name || 'Unlinked School',
+      });
+    });
+
+    const teachersAnalytics = Object.entries(teacherStatusMap).map(([status, list]) => ({
+      status,
+      count: list.length,
+      records: list,
+    }));
+
+    // 4. Students Status Grouping
+    const studentStatusMap: Record<string, any[]> = {
+      VERIFIED: [],
+      ACTIVE: [],
+      PENDING: [],
+      SUSPENDED: [],
+    };
+    students.forEach((st: any) => {
+      const sVal = st.status || 'PENDING';
+      if (!studentStatusMap[sVal]) studentStatusMap[sVal] = [];
+      studentStatusMap[sVal].push({
+        ...st,
+        school_name: st.school?.name || 'Unlinked School',
+        teacher_name: st.teachers?.full_name || 'Unassigned',
+      });
+    });
+
+    const studentsAnalytics = Object.entries(studentStatusMap).map(([status, list]) => ({
+      status,
+      count: list.length,
+      records: list,
+    }));
+
+    // 5. Build Institution-Scoped Breakdowns for micro analytics
+    const schoolsMicroAnalytics = schools.map((s: any) => {
+      const schoolTeachers = teachers.filter((t: any) => t.school_id === s.school_id);
+      const schoolStudents = students.filter((st: any) => st.school_id === s.school_id);
+
+      const sTeacherStatus: Record<string, any[]> = { ACTIVE: [], PENDING: [], INVITED: [], SUSPENDED: [] };
+      schoolTeachers.forEach((t: any) => {
+        const st = t.status || 'PENDING';
+        if (!sTeacherStatus[st]) sTeacherStatus[st] = [];
+        sTeacherStatus[st].push(t);
+      });
+
+      const sStudentStatus: Record<string, any[]> = { VERIFIED: [], ACTIVE: [], PENDING: [], SUSPENDED: [] };
+      schoolStudents.forEach((st: any) => {
+        const sVal = st.status || 'PENDING';
+        if (!sStudentStatus[sVal]) sStudentStatus[sVal] = [];
+        sStudentStatus[sVal].push(st);
+      });
+
+      return {
+        school_id: s.school_id,
+        name: s.name,
+        city: s.city,
+        state: s.state,
+        status: s.status || 'PENDING',
+        total_teachers: schoolTeachers.length,
+        total_students: schoolStudents.length,
+        teachers_by_status: Object.entries(sTeacherStatus).map(([status, list]) => ({
+          status,
+          count: list.length,
+          records: list,
+        })),
+        students_by_status: Object.entries(sStudentStatus).map(([status, list]) => ({
+          status,
+          count: list.length,
+          records: list,
+        })),
+        teachers: schoolTeachers.map((t: any) => {
+          const tStudents = schoolStudents.filter((st: any) => st.teacher_id === t.teacher_id);
+          const tStudentStatus: Record<string, any[]> = { VERIFIED: [], ACTIVE: [], PENDING: [], SUSPENDED: [] };
+          tStudents.forEach((st: any) => {
+            const sVal = st.status || 'PENDING';
+            if (!tStudentStatus[sVal]) tStudentStatus[sVal] = [];
+            tStudentStatus[sVal].push(st);
+          });
+
+          return {
+            teacher_id: t.teacher_id,
+            full_name: t.full_name,
+            department: t.department,
+            status: t.status,
+            total_students: tStudents.length,
+            students_by_status: Object.entries(tStudentStatus).map(([status, list]) => ({
+              status,
+              count: list.length,
+              records: list,
+            })),
+            students: tStudents,
+          };
+        }),
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      totals: {
+        schools: schools.length,
+        principals: principals.length,
+        teachers: teachers.length,
+        students: students.length,
+        mockTests: tests.length,
+      },
+      principalsAnalytics,
+      schoolsAnalytics,
+      teachersAnalytics,
+      studentsAnalytics,
+      schoolsMicroAnalytics,
     });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
@@ -334,7 +668,7 @@ export const generateMockTestPaper = async (req: Request, res: Response): Promis
         {
           title: testTitle,
           subject_id: subjectId,
-          description: `Standardized ${count}-question high-yield mock test generated by Jaypee Examination Authority.`,
+          description: `Standardized ${count}-question high-yield mock test generated by School Connect Examination Authority.`,
           total_questions: count,
           max_marks: Number(max_marks) || count * 4,
           max_time_in_mins: Number(duration_mins) || 15,

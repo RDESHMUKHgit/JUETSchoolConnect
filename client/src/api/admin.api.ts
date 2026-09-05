@@ -11,9 +11,20 @@ export const adminApi = {
       method: 'PUT',
       body: JSON.stringify({ reason }),
     }),
-  getAllSchools: (status?: string) =>
-    apiRequest(`/admin/schools${status ? `?status=${status}` : ''}`),
+  getAllSchools: (params?: { status?: string; search?: string } | string) => {
+    if (typeof params === 'string') {
+      return apiRequest(`/admin/schools${params ? `?status=${params}` : ''}`);
+    }
+    const query = new URLSearchParams();
+    if (params?.status) query.append('status', params.status);
+    if (params?.search) query.append('search', params.search);
+    const qs = query.toString();
+    return apiRequest(`/admin/schools${qs ? `?${qs}` : ''}`);
+  },
+  getSchoolHierarchy: (schoolId: string) => apiRequest(`/admin/schools/${schoolId}/hierarchy`),
+  getTeacherStudents: (teacherId: string) => apiRequest(`/admin/teachers/${teacherId}/students`),
   getPlatformMetrics: () => apiRequest('/admin/metrics'),
+  getDetailedPlatformMetrics: () => apiRequest('/admin/detailed-metrics'),
   createMockTest: (data: any) =>
     apiRequest('/admin/mock-tests', {
       method: 'POST',

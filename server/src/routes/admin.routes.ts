@@ -4,7 +4,10 @@ import {
   approveSchool,
   rejectSchool,
   getAllSchools,
+  getSchoolHierarchy,
+  getTeacherStudents,
   getPlatformMetrics,
+  getDetailedPlatformMetrics,
   createMockTest,
   createQuestion,
   generateMockTestPaper,
@@ -32,7 +35,10 @@ router.get('/pending-schools', requireRole('ADMIN', 'SUPER_ADMIN'), getPendingSc
 router.put('/schools/:schoolId/approve', requireRole('ADMIN', 'SUPER_ADMIN'), approveSchool);
 router.put('/schools/:schoolId/reject', requireRole('ADMIN', 'SUPER_ADMIN'), rejectSchool);
 router.get('/schools', requireRole('ADMIN', 'SUPER_ADMIN'), getAllSchools);
+router.get('/schools/:schoolId/hierarchy', requireRole('ADMIN', 'SUPER_ADMIN'), getSchoolHierarchy);
+router.get('/teachers/:teacherId/students', requireRole('ADMIN', 'SUPER_ADMIN'), getTeacherStudents);
 router.get('/metrics', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'), getPlatformMetrics);
+router.get('/detailed-metrics', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'), getDetailedPlatformMetrics);
 
 // Question Bank Operations
 router.get('/question-bank', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'), getQuestionBank);
