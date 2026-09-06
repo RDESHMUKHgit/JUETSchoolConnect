@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { supabase } from '../../utils/supabase.js';
+import { apiRequest } from '../../api/client.js';
 import { UploadCloud, X, Image as ImageIcon, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { Button } from './Button.js';
 
@@ -53,12 +54,42 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     try {
       setUploading(true);
 
-      // Generate unique file path
+      // Read file as Base64 Data URL
+      const reader = new FileReader();
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = (e) => reject(e);
+        reader.readAsDataURL(file);
+      });
+
+      // 1. Primary path: Upload via authenticated backend API (bypasses browser Supabase RLS restrictions)
+      try {
+        const res = await apiRequest('/admin/questions/upload-image', {
+          method: 'POST',
+          body: JSON.stringify({
+            fileBase64: base64Data,
+            fileName: file.name,
+            mimeType: file.type,
+          }),
+        });
+
+        if (res.success && res.publicUrl) {
+          onChange(res.publicUrl);
+          return;
+        }
+      } catch (serverErr: any) {
+        // If server returned an explicit error message, rethrow it
+        if (serverErr?.message && !serverErr.message.includes('404') && !serverErr.message.includes('Failed to fetch')) {
+          throw serverErr;
+        }
+        console.warn('Backend upload unavailable, falling back to direct storage:', serverErr);
+      }
+
+      // 2. Fallback: Direct upload to Supabase Storage
       const fileExt = file.name.split('.').pop() || 'png';
       const cleanFileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
       const filePath = cleanFileName;
 
-      // 3. Direct upload to Supabase Storage
       const { data, error: uploadError } = await supabase.storage
         .from(bucket)
         .upload(filePath, file, {
@@ -71,7 +102,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         throw new Error(uploadError.message);
       }
 
-      // 4. Retrieve permanent public URL
       const { data: urlData } = supabase.storage
         .from(bucket)
         .getPublicUrl(data.path);

@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
+import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../config/supabase.js';
+import { ENV } from '../config/env.js';
 
 /**
  * Controller for Exam Admin Question Bank operations:
@@ -295,5 +297,94 @@ export const deleteBankQuestion = async (req: Request, res: Response): Promise<v
     });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Exam Admin uploads an image for a question (Max 300 KB).
+ * Authenticates with Supabase to bypass Storage RLS policies and uploads directly to 'question-images'.
+ */
+let cachedStorageToken: string | null = null;
+let tokenExpiresAt = 0;
+
+async function getAuthenticatedStorageClient() {
+  const now = Date.now();
+  if (cachedStorageToken && now < tokenExpiresAt) {
+    return createClient(ENV.SUPABASE_URL, ENV.SUPABASE_KEY, {
+      global: { headers: { Authorization: `Bearer ${cachedStorageToken}` } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  }
+
+  const email = process.env.EXAM_ADMIN_EMAIL || 'examadmin@jaypee.ac.in';
+  const password = process.env.EXAM_ADMIN_PASSWORD || 'ExamAdmin@Jaypee2026!';
+
+  const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (authErr || !authData?.session) {
+    throw new Error('Failed to authenticate storage client: ' + (authErr?.message || 'No session'));
+  }
+
+  cachedStorageToken = authData.session.access_token;
+  tokenExpiresAt = now + (authData.session.expires_in ? (authData.session.expires_in - 300) * 1000 : 3300 * 1000);
+
+  return createClient(ENV.SUPABASE_URL, ENV.SUPABASE_KEY, {
+    global: { headers: { Authorization: `Bearer ${cachedStorageToken}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
+export const uploadQuestionImage = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { fileBase64, fileName, mimeType } = req.body;
+
+    if (!fileBase64) {
+      res.status(400).json({ success: false, message: 'Image data (fileBase64) is required.' });
+      return;
+    }
+
+    // Strip data URL prefix if present: "data:image/png;base64,..."
+    const base64Data = fileBase64.replace(/^data:[^;]+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Strict 300 KB enforcement
+    if (buffer.length > 300 * 1024) {
+      res.status(400).json({ success: false, message: 'File size exceeds 300 KB limit.' });
+      return;
+    }
+
+    const cleanMime = mimeType || 'image/png';
+    const ext = (fileName?.split('.').pop() || 'png').toLowerCase();
+    const cleanFileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${ext}`;
+
+    const storageClient = await getAuthenticatedStorageClient();
+
+    const { data, error: uploadError } = await storageClient.storage
+      .from('question-images')
+      .upload(cleanFileName, buffer, {
+        contentType: cleanMime,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      res.status(400).json({ success: false, message: 'Storage upload failed: ' + uploadError.message });
+      return;
+    }
+
+    const { data: urlData } = storageClient.storage
+      .from('question-images')
+      .getPublicUrl(data.path);
+
+    res.status(200).json({
+      success: true,
+      message: 'Question image uploaded successfully.',
+      publicUrl: urlData.publicUrl,
+    });
+  } catch (err: any) {
+    console.error('[UploadQuestionImage Error]', err);
+    res.status(500).json({ success: false, message: err.message || 'Image upload failed.' });
   }
 };

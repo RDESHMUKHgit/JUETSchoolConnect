@@ -21,6 +21,7 @@ import {
   createBankQuestion,
   updateBankQuestion,
   deleteBankQuestion,
+  uploadQuestionImage,
 } from '../controllers/admin.question.controller.js';
 import {
   manualCreateMockTest,
@@ -47,6 +48,7 @@ router.get('/question-bank', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'), 
 router.post('/question-bank', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'), createBankQuestion);
 router.put('/question-bank/:id', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'), updateBankQuestion);
 router.delete('/question-bank/:id', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'), deleteBankQuestion);
+router.post('/questions/upload-image', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'), uploadQuestionImage);
 
 // Mock Test Authoring & Generation (Accessible by EXAM_ADMIN, ADMIN, SUPER_ADMIN)
 router.post('/mock-tests', requireRole('ADMIN', 'SUPER_ADMIN', 'EXAM_ADMIN'), createMockTest);

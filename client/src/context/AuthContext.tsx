@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole, UserStatus } from '../types/index.js';
 import { authApi } from '../api/auth.api.js';
 import { teacherApi } from '../api/teacher.api.js';
+import { supabase } from '../utils/supabase.js';
 
 interface AuthContextType {
   user: User | null;
@@ -61,6 +62,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const res = await authApi.adminLogin({ email, password });
     if (res.success && res.user) {
       setUser(res.user);
+      if (res.supabaseSession) {
+        await supabase.auth.setSession(res.supabaseSession).catch(() => {});
+      }
       return res.redirectUrl || '/admin';
     }
     throw new Error(res.message || 'Admin authentication failed');

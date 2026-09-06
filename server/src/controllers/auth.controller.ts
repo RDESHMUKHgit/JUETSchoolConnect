@@ -676,6 +676,7 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
       user: payload,
       redirectUrl,
       token,
+      supabaseSession: authData?.session || null,
     });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
