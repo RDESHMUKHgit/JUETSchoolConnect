@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.js';
 import { Card } from '../../components/ui/Card.js';
@@ -6,6 +6,20 @@ import { Input } from '../../components/ui/Input.js';
 import { Select } from '../../components/ui/Select.js';
 import { Button } from '../../components/ui/Button.js';
 import { School, ArrowRight, ShieldAlert } from 'lucide-react';
+import indiaData from '../../../indiaStatesCities.json';
+
+interface StateCityData {
+  state: string;
+  iso2: string;
+  cities: string[];
+}
+
+const stateList: StateCityData[] = indiaData as StateCityData[];
+
+const stateOptions = stateList.map((item) => ({
+  value: item.state,
+  label: item.state,
+}));
 
 export const SchoolDetailsSetup: React.FC = () => {
   const navigate = useNavigate();
@@ -13,7 +27,7 @@ export const SchoolDetailsSetup: React.FC = () => {
 
   const [name, setName] = useState('');
   const [board, setBoard] = useState<'CBSE' | 'ICSE'>('CBSE');
-  const [state, setState] = useState('Delhi NCR');
+  const [state, setState] = useState('Uttar Pradesh');
   const [city, setCity] = useState('Noida');
   const [pin, setPin] = useState('');
   const [regNo, setRegNo] = useState('');
@@ -21,6 +35,28 @@ export const SchoolDetailsSetup: React.FC = () => {
   const [medium, setMedium] = useState<'ENGLISH' | 'HINDI'>('ENGLISH');
   const [officialPhone, setOfficialPhone] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
+
+  const currentCities = useMemo(() => {
+    const found = stateList.find((s) => s.state.toLowerCase() === state.toLowerCase());
+    return found ? found.cities : [];
+  }, [state]);
+
+  const cityOptions = useMemo(() => {
+    return currentCities.map((c) => ({
+      value: c,
+      label: c,
+    }));
+  }, [currentCities]);
+
+  const handleStateChange = (newState: string) => {
+    setState(newState);
+    const found = stateList.find((s) => s.state.toLowerCase() === newState.toLowerCase());
+    if (found && found.cities.length > 0) {
+      setCity(found.cities[0]);
+    } else {
+      setCity('');
+    }
+  };
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,19 +146,21 @@ export const SchoolDetailsSetup: React.FC = () => {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
-            <Input
-              label="City"
-              placeholder="Noida"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 0.8fr', gap: '14px' }}>
+            <Select
+              label="State *"
+              value={state}
+              onChange={(e) => handleStateChange(e.target.value)}
+              options={stateOptions}
+              placeholder="Select State"
               required
             />
-            <Input
-              label="State"
-              placeholder="Uttar Pradesh"
-              value={state}
-              onChange={(e) => setState(e.target.value)}
+            <Select
+              label="City *"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              options={cityOptions}
+              placeholder="Select City"
               required
             />
             <Input

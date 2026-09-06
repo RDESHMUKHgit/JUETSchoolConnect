@@ -108,11 +108,12 @@ export const manualAddStudent = async (req: Request, res: Response): Promise<voi
 export const updateStudentStatus = async (req: Request, res: Response): Promise<void> => {
   try {
     const schoolId = req.user?.schoolId;
+    const teacherId = req.user?.userId;
     const { studentId } = req.params;
     const { status } = req.body;
 
-    if (!schoolId) {
-      res.status(400).json({ success: false, message: 'Teacher is not associated with a school.' });
+    if (!schoolId || !teacherId) {
+      res.status(400).json({ success: false, message: 'Teacher authentication details missing.' });
       return;
     }
 
@@ -121,10 +122,10 @@ export const updateStudentStatus = async (req: Request, res: Response): Promise<
       return;
     }
 
-    // Verify student belongs to this teacher's school
+    // Verify student belongs to this teacher's school and teacher
     const { data: student, error: fetchErr } = await supabase
       .from('student')
-      .select('student_id, full_name, school_id')
+      .select('student_id, full_name, school_id, teacher_id')
       .eq('student_id', studentId)
       .single();
 
@@ -133,8 +134,8 @@ export const updateStudentStatus = async (req: Request, res: Response): Promise<
       return;
     }
 
-    if (student.school_id !== schoolId) {
-      res.status(403).json({ success: false, message: 'You can only update students from your school.' });
+    if (student.school_id !== schoolId || student.teacher_id !== teacherId) {
+      res.status(403).json({ success: false, message: 'You can only update students assigned under your account.' });
       return;
     }
 

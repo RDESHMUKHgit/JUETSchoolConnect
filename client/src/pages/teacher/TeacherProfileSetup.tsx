@@ -5,7 +5,7 @@ import { Card } from '../../components/ui/Card.js';
 import { Input } from '../../components/ui/Input.js';
 import { Select } from '../../components/ui/Select.js';
 import { Button } from '../../components/ui/Button.js';
-import { BookOpen, User, Phone, ArrowRight, ShieldCheck } from 'lucide-react';
+import { BookOpen, User, Phone, ArrowRight, ShieldCheck, Lock } from 'lucide-react';
 
 export const TeacherProfileSetup: React.FC = () => {
   const navigate = useNavigate();
@@ -19,11 +19,29 @@ export const TeacherProfileSetup: React.FC = () => {
   const [qualification, setQualification] = useState('M.Sc., B.Ed.');
   const [gender, setGender] = useState('MALE');
 
+  // Password reset state for first-time login
+  const [currentPassword, setCurrentPassword] = useState<string>(() => {
+    return sessionStorage.getItem('temp_login_pass') || '';
+  });
+  const [newPassword, setNewPassword] = useState<string>('');
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (newPassword) {
+      if (newPassword.length < 6) {
+        setError('New password must be at least 6 characters.');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        setError('Passwords do not match.');
+        return;
+      }
+    }
 
     try {
       setLoading(true);
@@ -35,7 +53,10 @@ export const TeacherProfileSetup: React.FC = () => {
         specialization,
         qualification,
         gender,
+        new_password: newPassword || undefined,
+        current_password: currentPassword || undefined,
       });
+      sessionStorage.removeItem('temp_login_pass');
       if (user?.status === 'VERIFIED' || user?.status === 'ACTIVE') {
         navigate('/teacher');
       } else {
@@ -132,6 +153,38 @@ export const TeacherProfileSetup: React.FC = () => {
             value={qualification}
             onChange={(e) => setQualification(e.target.value)}
           />
+
+          {/* Set Permanent Password (Optional / For First Login) */}
+          <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '16px', marginTop: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+              <Lock size={16} style={{ color: '#0284C7' }} />
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
+                Set Permanent Password (Optional)
+              </span>
+            </div>
+            <p style={{ fontSize: '12px', color: '#64748B', margin: '0 0 12px 0' }}>
+              If you logged in using a temporary password provided by your Principal, set your new permanent password below.
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+              <Input
+                label="New Password"
+                type="password"
+                placeholder="Min 6 characters"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                icon={<Lock size={16} />}
+              />
+              <Input
+                label="Confirm Password"
+                type="password"
+                placeholder="Repeat new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                icon={<Lock size={16} />}
+              />
+            </div>
+          </div>
 
           <Button
             type="submit"

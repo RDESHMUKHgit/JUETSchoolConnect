@@ -29,6 +29,9 @@ export const Login: React.FC = () => {
       setLoading(true);
       setError(null);
       const redirectUrl = await login(email, password, selectedRole);
+      if (redirectUrl.includes('profile-setup')) {
+        sessionStorage.setItem('temp_login_pass', password);
+      }
       navigate(redirectUrl);
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check your credentials.');

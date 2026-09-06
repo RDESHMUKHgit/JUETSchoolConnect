@@ -23,7 +23,38 @@ export const completeTeacherProfile = async (req: Request, res: Response): Promi
       gender,
       dob,
       profile_photo_url,
+      new_password,
+      current_password,
     } = req.body;
+
+    // Optional Permanent Password Update (if teacher logged in with temporary password)
+    if (new_password) {
+      if (new_password.length < 6) {
+        res.status(400).json({ success: false, message: 'New password must be at least 6 characters long.' });
+        return;
+      }
+
+      console.log(`🔐 Updating permanent password for teacher: ${user.email}`);
+      const authClient = supabase;
+      let sessionEstablished = false;
+
+      if (current_password) {
+        const { error: signErr } = await authClient.auth.signInWithPassword({
+          email: user.email,
+          password: current_password,
+        });
+        if (!signErr) sessionEstablished = true;
+      }
+
+      if (sessionEstablished) {
+        const { error: updPwErr } = await authClient.auth.updateUser({ password: new_password });
+        if (updPwErr && !updPwErr.message.includes('should be different')) {
+          console.warn('⚠️ Supabase Auth teacher password update notice:', updPwErr.message);
+        } else {
+          console.log(`✅ Permanent password successfully set for teacher: ${user.email}`);
+        }
+      }
+    }
 
     const isAlreadyVerified = user.status === 'VERIFIED' || user.status === 'ACTIVE';
     const targetStatus = isAlreadyVerified ? user.status : 'PENDING';
@@ -269,12 +300,14 @@ export const bulkRegisterStudents = async (req: Request, res: Response): Promise
 
 /**
  * Returns students who completed their profile and are awaiting verification (status: PENDING)
+ * Scoped strictly to students assigned under this teacher.
  */
 export const getPendingStudents = async (req: Request, res: Response): Promise<void> => {
   try {
     const schoolId = req.user?.schoolId;
-    if (!schoolId) {
-      res.status(400).json({ success: false, message: 'Teacher is not associated with a school.' });
+    const teacherId = req.user?.userId;
+    if (!schoolId || !teacherId) {
+      res.status(400).json({ success: false, message: 'Teacher authentication details missing.' });
       return;
     }
 
@@ -286,6 +319,7 @@ export const getPendingStudents = async (req: Request, res: Response): Promise<v
       .from('student')
       .select('*', { count: 'exact' })
       .eq('school_id', schoolId)
+      .eq('teacher_id', teacherId)
       .eq('status', 'PENDING')
       .order('updated_at', { ascending: false })
       .range(offset, offset + limit - 1);
@@ -313,6 +347,7 @@ export const getPendingStudents = async (req: Request, res: Response): Promise<v
 export const verifyStudent = async (req: Request, res: Response): Promise<void> => {
   try {
     const schoolId = req.user?.schoolId;
+    const teacherId = req.user?.userId;
     const { studentId } = req.params;
 
     let { data, error } = await supabase
@@ -323,6 +358,7 @@ export const verifyStudent = async (req: Request, res: Response): Promise<void> 
       })
       .eq('student_id', studentId)
       .eq('school_id', schoolId)
+      .eq('teacher_id', teacherId)
       .select()
       .maybeSingle();
 
@@ -335,6 +371,7 @@ export const verifyStudent = async (req: Request, res: Response): Promise<void> 
         })
         .eq('student_id', studentId)
         .eq('school_id', schoolId)
+        .eq('teacher_id', teacherId)
         .select()
         .maybeSingle();
 
@@ -361,6 +398,7 @@ export const verifyStudent = async (req: Request, res: Response): Promise<void> 
 export const rejectStudent = async (req: Request, res: Response): Promise<void> => {
   try {
     const schoolId = req.user?.schoolId;
+    const teacherId = req.user?.userId;
     const { studentId } = req.params;
 
     const { data, error } = await supabase
@@ -371,6 +409,7 @@ export const rejectStudent = async (req: Request, res: Response): Promise<void> 
       })
       .eq('student_id', studentId)
       .eq('school_id', schoolId)
+      .eq('teacher_id', teacherId)
       .select()
       .maybeSingle();
 
@@ -389,11 +428,15 @@ export const rejectStudent = async (req: Request, res: Response): Promise<void> 
   }
 };
 
+/**
+ * Returns students assigned strictly under the logged-in teacher.
+ */
 export const getAssignedStudents = async (req: Request, res: Response): Promise<void> => {
   try {
     const schoolId = req.user?.schoolId;
-    if (!schoolId) {
-      res.status(400).json({ success: false, message: 'Teacher is not associated with a school.' });
+    const teacherId = req.user?.userId;
+    if (!schoolId || !teacherId) {
+      res.status(400).json({ success: false, message: 'Teacher authentication details missing.' });
       return;
     }
 
@@ -401,6 +444,7 @@ export const getAssignedStudents = async (req: Request, res: Response): Promise<
       .from('student')
       .select('*')
       .eq('school_id', schoolId)
+      .eq('teacher_id', teacherId)
       .eq('class', 12)
       .order('full_name', { ascending: true });
 
@@ -417,10 +461,16 @@ export const getAssignedStudents = async (req: Request, res: Response): Promise<
 
 export const getStudentPerformanceDiagnostic = async (req: Request, res: Response): Promise<void> => {
   try {
+    const teacherId = req.user?.userId;
     const { studentId } = req.params;
 
     const [studentRes, attemptsRes] = await Promise.all([
-      supabase.from('student').select('*, school:school_id(name)').eq('student_id', studentId).single(),
+      supabase
+        .from('student')
+        .select('*, school:school_id(name)')
+        .eq('student_id', studentId)
+        .eq('teacher_id', teacherId)
+        .single(),
       supabase
         .from('test_attempts')
         .select('*, mock_test:mock_test_id(title, max_marks, passing_marks)')
@@ -429,7 +479,7 @@ export const getStudentPerformanceDiagnostic = async (req: Request, res: Respons
     ]);
 
     if (studentRes.error || !studentRes.data) {
-      res.status(404).json({ success: false, message: 'Student record not found.' });
+      res.status(404).json({ success: false, message: 'Student record not found or not assigned under your account.' });
       return;
     }
 
